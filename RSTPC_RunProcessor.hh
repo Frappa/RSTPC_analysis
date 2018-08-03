@@ -58,7 +58,8 @@ public:
 		fTpcMan->LoadIndcMap(filename);
 	};
 	
-	Bool_t InitT1proc(Int_t RunNumber=-1);
+	Bool_t InitT1proc(Int_t RunNumber);
+	Bool_t InitT1proc(){return InitT1proc(fRunNumber);};
 	virtual void DescribeT1();
 	virtual void T1process();
 	
@@ -85,6 +86,9 @@ public:
 	
 	EventData* GetEventData() const {return gEventData;};
 	
+	
+	RSTPC_Analyser* GetTpcManager(){return fTpcMan;}
+	MppcTreeWrapper* GetMppcManager(){return fFebMan;};
 	
 	
 	//Static functions. They must be defined in .cc file otherwise ROOT does not compile (actually link) the classes including this header!!!

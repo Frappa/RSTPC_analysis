@@ -576,21 +576,21 @@ void RSTPC_T2wrapper::PlotColPulses()
 		}
 	}
 	
-	Double_t minNoiseWidth = (Double_t)TMath::MinElement( widthsVec.size(), &widthsVec.at(0) );
-	Double_t maxNoiseWidth = (Double_t)TMath::MinElement( widthsVec.size(), &widthsVec.at(0) );
-	Double_t deltaX = maxNoiseWidth - minNoiseWidth;
-	minNoiseWidth -= 0.1*deltaX;
-	maxNoiseWidth += 0.1*deltaX;
+	Double_t minWidth = (Double_t)TMath::MinElement( widthsVec.size(), &widthsVec.at(0) );
+	Double_t maxWidth = (Double_t)TMath::MinElement( widthsVec.size(), &widthsVec.at(0) );
+	Double_t deltaX = maxWidth - minWidth;
+	minWidth -= 0.1*deltaX;
+	maxWidth += 0.1*deltaX;
 	
-	Double_t minNoiseAmpl = TMath::MinElement( maxampVec.size(), &maxampVec.at(0) );
-	Double_t maxNoiseAmpl = TMath::MinElement( maxampVec.size(), &maxampVec.at(0) );
-	Double_t deltaY = maxNoiseAmpl - minNoiseAmpl;
-	minNoiseAmpl -= 0.1*deltaY;
-	maxNoiseAmpl += 0.1*deltaY;
+	Double_t minAmpl = TMath::MinElement( maxampVec.size(), &maxampVec.at(0) );
+	Double_t maxAmpl = TMath::MinElement( maxampVec.size(), &maxampVec.at(0) );
+	Double_t deltaY = maxAmpl - minAmpl;
+	minAmpl -= 0.1*deltaY;
+	maxAmpl += 0.1*deltaY;
 	
 	TH2D* hNoiseColPulses = (TH2D*)gROOT->FindObject("hNoiseColPulses");
 	if(hNoiseColPulses) delete hNoiseColPulses;
-	hNoiseColPulses = new TH2D("hNoiseColPulses","Collection pulses - Only noise region;Width [samples];Amplitude [AU]", 100, minNoiseWidth, maxNoiseWidth, 100, minNoiseAmpl, maxNoiseAmpl);
+	hNoiseColPulses = new TH2D("hNoiseColPulses","Collection pulses - Only noise region;Width [samples];Amplitude [AU]", 50, minWidth, maxWidth, 50, minAmpl, maxAmpl);
 	
 	for(Int_t iPulse=0; iPulse<maxposVec.size(); iPulse++)
 	{
@@ -602,9 +602,71 @@ void RSTPC_T2wrapper::PlotColPulses()
 	{
 		canvPlotColPulses1 = new TCanvas("canvPlotColPulses1","Noise collection pulses", 800, 600);
 	}
-	canvPlotColPulses1->cd();
+	canvPlotColPulses1->cd()->SetLogz();
 	
 	hNoiseColPulses->Draw("colz");
+	
+	
+	
+	
+	//Now plot the same for the signal region
+	const Double_t minSignTime = 200; //Time in samples units
+	const Double_t maxSignTime = 1300; //Time in samples number
+	
+	maxposVec.clear();
+	widthsVec.clear();
+	maxampVec.clear();
+	
+	for(Int_t iEv=0; iEv<nEvs; iEv++)
+	{
+		GetEntry(iEv);
+		fT1wr->GetEntry(iEv);
+		
+		//Iterate over all the pulses but select only those of the collection wires
+		RSTPC_Pulse *ColPulse;
+		TIter ColPulsesIt(ColPulses);
+		while( (ColPulse = (RSTPC_Pulse*)ColPulsesIt.Next()) )
+		{
+			if(ColPulse->fWireType!=kCol) continue;
+			if(ColPulse->fLedge<minSignTime) continue;
+			if(ColPulse->fLedge>maxSignTime) continue;
+			
+			Int_t width = ColPulse->fRedge - ColPulse->fLedge;
+			maxposVec.push_back( ColPulse->fMaxPos );
+			widthsVec.push_back( width );
+			maxampVec.push_back( ColPulse->fMax );
+		}
+	}
+	
+	minWidth = (Double_t)TMath::MinElement( widthsVec.size(), &widthsVec.at(0) );
+	maxWidth = (Double_t)TMath::MinElement( widthsVec.size(), &widthsVec.at(0) );
+	deltaX = maxWidth - minWidth;
+	minWidth -= 0.1*deltaX;
+	maxWidth += 0.1*deltaX;
+	
+	minAmpl = TMath::MinElement( maxampVec.size(), &maxampVec.at(0) );
+	maxAmpl = TMath::MinElement( maxampVec.size(), &maxampVec.at(0) );
+	deltaY = maxAmpl - minAmpl;
+	minAmpl -= 0.1*deltaY;
+	maxAmpl += 0.1*deltaY;
+	
+	TH2D* hSignalColPulses = (TH2D*)gROOT->FindObject("hSignalColPulses");
+	if(hSignalColPulses) delete hSignalColPulses;
+	hSignalColPulses = new TH2D("hSignalColPulses","Collection pulses - Only signal region;Width [samples];Amplitude [AU]", 500, minWidth, maxWidth, 500, minAmpl, maxAmpl);
+	
+	for(Int_t iPulse=0; iPulse<maxposVec.size(); iPulse++)
+	{
+		hSignalColPulses->Fill( widthsVec.at(iPulse), maxampVec.at(iPulse) );
+	}
+	
+	TCanvas *canvPlotColPulses2 = (TCanvas*)gROOT->FindObject("canvPlotColPulses2");
+	if(!canvPlotColPulses2)
+	{
+		canvPlotColPulses2 = new TCanvas("canvPlotColPulses2","Signal collection pulses", 800, 600);
+	}
+	canvPlotColPulses2->cd()->SetLogz();
+	
+	hSignalColPulses->Draw("colz");
 	
 	
 	

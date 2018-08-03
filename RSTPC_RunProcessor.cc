@@ -242,9 +242,9 @@ RSTPC_RunProcessor::RSTPC_RunProcessor(Int_t RunNumber) : gColPulses(0), gIndPul
 	fT1wr = NULL;
 	fOutT2 = NULL;
 	
-	fRunNumber = -1;
+	fRunNumber = RunNumber;
 	
-	fRunOpenFlag = InitT1proc(RunNumber);
+	//fRunOpenFlag = InitT1proc(RunNumber);
 	
 	
 	fProcT1 = false;
@@ -320,12 +320,6 @@ Bool_t RSTPC_RunProcessor::InitT1proc(Int_t RunNumber)
 	fTpcMan->fDataDir = fDataDir;
 	fTpcMan->OpenRun(fRunNumber);
 	if( !(fTpcMan->IsInit() && (fTpcMan->fTrigTree)) ) return false;
-	
-	fTpcMan->Set_CMnoiseRej(true, 5);
-	fTpcMan->SetBaselineROI(2000, 3000);
-	fTpcMan->SetSigmaThr(3.0);
-	fTpcMan->SetPrintFlag(false);
-	
 	
 	fFebMan->fDataDir = fDataDir;
 	stringstream feb_filename; feb_filename.str("");
@@ -488,8 +482,6 @@ void RSTPC_RunProcessor::T1process()
 		fTpcMan->CMrej(fTpcMan->hI0, fTpcMan->fIndRMS, fTpcMan->fCMrejIter, true);
 		
 		
-		
-		
 		gEventData->TpcEv = iTpcEv;
 		gEventData->TpcTime = ((Double_t)fTpcMan->fEventTime)/1e6;
 		//gEventData->hCol = fTpcMan->hC0;
@@ -510,10 +502,12 @@ void RSTPC_RunProcessor::T1process()
 		gEventData->FebTopAmp[1] = fFebMan->chg[2];
 		gEventData->FebTopAmp[2] = fFebMan->chg[3];
 		gEventData->FebTopTotAmp = gEventData->FebTopAmp[0] + gEventData->FebTopAmp[1] + gEventData->FebTopAmp[2];
+		
 		gEventData->FebBotAmp[0] = fFebMan->chg[4];
 		gEventData->FebBotAmp[1] = fFebMan->chg[6];
 		gEventData->FebBotAmp[2] = fFebMan->chg[7];
 		gEventData->FebBotTotAmp = gEventData->FebBotAmp[0] + gEventData->FebBotAmp[1] + gEventData->FebBotAmp[2];
+		
 		gEventData->FebTotAmp = gEventData->FebTopTotAmp + gEventData->FebBotTotAmp;
 		
 		fOutT1->Fill();

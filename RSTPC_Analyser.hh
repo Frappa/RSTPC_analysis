@@ -111,16 +111,20 @@ public:
 	void preamp(TH2I* h); //droop compensation is here
 	void scale();
 	
+	
 	//The common mode noise rejection methods return the correction histogram "bgx"
 	TH1D* CMrej(TH2* h, vector<Double_t>* RMS_vect, Int_t iterations, Bool_t bslncorr=true);
+	
 	TH1D* CMrej(TH2* h, Int_t iterations, Bool_t bslncorr=true)
 	{
 		return CMrej(h, NULL, iterations, bslncorr);
 	};
+	
 	TH1D* CMrej(TH2 * h, Bool_t bslncorr)
 	{
 		return CMrej(h, NULL, 1, bslncorr);
 	};
+	
 	TH1D* CMrej(TH2 * h, vector<Double_t>* RMS_vect, Bool_t bslncorr)
 	{
 		return CMrej(h, RMS_vect, 1, bslncorr);
