@@ -349,3 +349,102 @@ void CorrPlot(Int_t RunNum, Int_t EvNnum)
 	hI0_3_corr_ampl->Draw("same");
 	
 }
+
+
+
+void PlotWaves()
+{//This plots few waveforms for showing the CM problems
+	
+	Int_t RunNum = 2032;
+	Int_t event = 2;
+	
+	UInt_t ColChs [] = {8,12,15,16,27};
+	Color_t ColColors [] = {kBlue,kBlue,kBlue,kBlue,kRed};
+	Int_t nColChs = sizeof(ColChs)/sizeof(UInt_t);
+	
+	UInt_t IndChs [] = {8,13,14,15,20};
+	Color_t IndColors [] = {kRed,kBlue,kBlue,kBlue,kRed};
+	Int_t nIndChs = sizeof(IndChs)/sizeof(UInt_t);
+	
+	
+	vector<TGraph*> ColGrsVec, IndGrsVec;
+	
+	for(Int_t iGr=0; iGr<nColChs; iGr++)
+	{
+		TGraph *gr = new TGraph;
+		gr->SetMarkerStyle(1);
+		gr->SetMarkerColor(ColColors[iGr]);
+		gr->SetLineColor(ColColors[iGr]);
+		ColGrsVec.push_back(gr);
+	}
+	
+	for(Int_t iGr=0; iGr<nIndChs; iGr++)
+	{
+		TGraph *gr = new TGraph;
+		gr->SetMarkerStyle(1);
+		gr->SetMarkerColor(IndColors[iGr]);
+		gr->SetLineColor(IndColors[iGr]);
+		IndGrsVec.push_back(gr);
+	}
+	
+	
+	
+	RSTPC_Options::GetInstance()->SetDataDir("/home/francescop/data/ResistiveShell/");
+	
+	if(an) delete an;
+	
+	an = new RSTPC_Analyser;
+	an->LoadCollMap("../ResistiveShellTPC/CollWireMap.txt");
+	an->LoadIndcMap("../ResistiveShellTPC/InducWireMap.txt");
+	an->OpenRun(RunNum);
+	an->Set_CMnoiseRej(false);
+	an->SetBaselineROI(2000, 3000);
+	an->SetSigmaThr(3.0);
+	an->LoadEvent(event);
+	
+	
+	TMultiGraph *mgrColChs = new TMultiGraph;
+	for(Int_t iGr=0; iGr<nColChs; iGr++)
+	{
+		Int_t nSamps = an->hC0->GetNbinsX();
+		
+		Double_t offset = (Double_t)iGr;
+		
+		for(Int_t iSamp=0; iSamp<nSamps; iSamp++)
+		{
+			Double_t val = an->hC0->GetBinContent(iSamp+1, ColChs[iGr]+1);
+			ColGrsVec.at(iGr)->SetPoint(iSamp, iSamp, val);
+		}
+		mgrColChs->Add(ColGrsVec.at(iGr), "P");
+	}
+	
+	
+	TMultiGraph *mgrIndChs = new TMultiGraph;
+	for(Int_t iGr=0; iGr<nIndChs; iGr++)
+	{
+		Int_t nSamps = an->hI0->GetNbinsX();
+		
+		Double_t offset = (Double_t)iGr;
+		
+		for(Int_t iSamp=0; iSamp<nSamps; iSamp++)
+		{
+			Double_t val = an->hI0->GetBinContent(iSamp+1, IndChs[iGr]+1);
+			IndGrsVec.at(iGr)->SetPoint(iSamp, iSamp, val);
+		}
+		mgrIndChs->Add(IndGrsVec.at(iGr), "P");
+	}
+	
+	
+	TCanvas *c1 = (TCanvas*)gROOT->FindObject("c1");
+	if(c1) delete c1;
+	c1 = new TCanvas("c1","Waveforms",1200,800);
+	c1->Divide(1,2);
+	
+	c1->cd(1);
+	mgrColChs->SetTitle("Collection channels; Y(t) [ADC ch]; Time [sample]");
+	mgrColChs->Draw("AP");
+	
+	c1->cd(2);
+	mgrIndChs->SetTitle("Induction channels; X(t) [ADC ch]; Time [sample]");
+	mgrIndChs->Draw("AP");
+}
