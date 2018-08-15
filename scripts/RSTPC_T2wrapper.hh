@@ -24,6 +24,7 @@ public :
    TTree          *fChain;   //!pointer to the analyzed TTree or TChain
    Int_t           fCurrent; //!current Tree number in a TChain
 	RSTPC_T1wrapper * fT1wr;
+	TFile* fInFile;
 // Fixed size dimensions of array or collections stored in the TTree if any.
 	
    // Declaration of leaf types
@@ -38,6 +39,7 @@ public :
    TBranch        *b_IndPulses;   //!
    TBranch        *b_Hits;   //!
 
+   RSTPC_T2wrapper(RSTPC_T1wrapper* t1w);
    RSTPC_T2wrapper(TTree *tree=0);
    virtual ~RSTPC_T2wrapper();
    virtual Int_t    Cut(Long64_t entry);
@@ -58,7 +60,29 @@ public :
 #endif /* RSTPC_T2WRAPPER_HH */
 
 #ifdef RSTPC_T2WRAPPER_CC
-RSTPC_T2wrapper::RSTPC_T2wrapper(TTree *tree) : fChain(0), fT1wr(0) 
+
+RSTPC_T2wrapper::RSTPC_T2wrapper(RSTPC_T1wrapper* t1w) : fChain(0), fT1wr(0), fInFile(0)
+{
+	if(!t1w) return;
+	
+	if(!t1w->IsInit()) return;
+	
+	if(!t1w->fInfile) return;
+	
+	if(!t1w->fInfile->IsOpen()) return;
+	
+	fInFile = t1w->fInfile;
+	
+	fChain = (TTree*)fInFile->Get("T2");
+	
+	if(!fChain) return;
+	
+	Init(fChain);
+	
+}
+
+
+RSTPC_T2wrapper::RSTPC_T2wrapper(TTree *tree) : fChain(0), fT1wr(0), fInFile(0)
 {
 // if parameter tree is not specified (or zero), connect the file
 // used to generate this class and read the Tree.
@@ -77,8 +101,8 @@ RSTPC_T2wrapper::RSTPC_T2wrapper(TTree *tree) : fChain(0), fT1wr(0)
    }
    Init(tree);
    
-   fT1wr = new RSTPC_T1wrapper((TTree*)tree->GetCurrentFile()->Get("T1"));
-   fT1wr->SetFileOwner(false);
+   //fT1wr = new RSTPC_T1wrapper((TTree*)tree->GetCurrentFile()->Get("T1"));
+   //fT1wr->SetFileOwner(false);
 }
 
 RSTPC_T2wrapper::~RSTPC_T2wrapper()
