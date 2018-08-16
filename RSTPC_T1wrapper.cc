@@ -17,8 +17,6 @@ RSTPC_T1wrapper::RSTPC_T1wrapper() : fChain(0), fInfile(NULL), fInFileOwner(true
 {
 	fClassInit = false;
 	
-	fInfile = NULL;
-	
 	/*
 	if( RSTPC_Options::GetInstance()->IsDataDirSet() )
 	{
