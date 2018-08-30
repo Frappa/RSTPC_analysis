@@ -149,6 +149,7 @@ protected:
 	
 	//Vectors with the collection of all the pulses
 	vector<RSTPC_Pulse*> *gColPulses, *gIndPulses;
+	vector<RSTPC_Hit*> *gHits;
 	
 private:
 	
@@ -180,15 +181,17 @@ public:
 	TH2D *hInd;
 	
 	//This stuff is for the T2 processing and this class is the only owner
-	TObjArray *ColPulses, *IndPulses;
-	TObjArray *Hits;
+	//TObjArray *ColPulses, *IndPulses;
+	//TObjArray *Hits;
+	
+	TClonesArray *ColPulses, *IndPulses, *Hits;
 	
 	Bool_t GoodEvent;
 	
 	EventData();
 	virtual ~EventData();
 	
-	void Reset();
+	void Reset(string opt="");
 };
 
 /*

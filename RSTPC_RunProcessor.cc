@@ -181,7 +181,7 @@ RSTPC_RunProcessor::RSTPC_RunProcessor() : gColPulses(0), gIndPulses(0)
 	
 	gColPulses = new vector<RSTPC_Pulse*>;
 	gIndPulses = new vector<RSTPC_Pulse*>;
-	
+	gHits = new vector<RSTPC_Hit*>;
 }
 
 
@@ -257,7 +257,7 @@ RSTPC_RunProcessor::RSTPC_RunProcessor(Int_t RunNumber) : gColPulses(0), gIndPul
 	
 	gColPulses = new vector<RSTPC_Pulse*>;
 	gIndPulses = new vector<RSTPC_Pulse*>;
-	
+	gHits = new vector<RSTPC_Hit*>;
 }
 
 
@@ -280,6 +280,7 @@ RSTPC_RunProcessor::~RSTPC_RunProcessor()
 	
 	if(gColPulses) delete gColPulses;
 	if(gIndPulses) delete gIndPulses;
+	if(gHits) delete gHits;
 }
 
 
@@ -781,9 +782,12 @@ void RSTPC_RunProcessor::DescribeT2()
 	}
 	
 	fOutT2->Branch("GoodEvent",&gEventData->GoodEvent,"GoodEvent/O");
-	fOutT2->Branch("ColPulses", "TObjArray", &gEventData->ColPulses, 32000, 2);
-	fOutT2->Branch("IndPulses", "TObjArray", &gEventData->IndPulses, 32000, 2);
-	fOutT2->Branch("Hits", "TObjArray", &gEventData->Hits, 32000, 2);
+	//fOutT2->Branch("ColPulses", "TObjArray", &gEventData->ColPulses, 32000, 2);
+	//fOutT2->Branch("IndPulses", "TObjArray", &gEventData->IndPulses, 32000, 2);
+	//fOutT2->Branch("Hits", "TObjArray", &gEventData->Hits, 32000, 2);
+	fOutT2->Branch("ColPulses", "TClonesArray", &gEventData->ColPulses, 32000, 2);
+	fOutT2->Branch("IndPulses", "TClonesArray", &gEventData->IndPulses, 32000, 2);
+	fOutT2->Branch("Hits", "TClonesArray", &gEventData->Hits, 32000, 2);
 	
 	fProcT2 = true;
 }
@@ -817,11 +821,12 @@ void RSTPC_RunProcessor::T2Process()
 			}
 		}
 		
-		gEventData->Reset();
+		gEventData->Reset("C");
 		RSTPC_Pulse::ResetCounter();
 		RSTPC_Hit::ResetCounter();
 		gColPulses->clear();
 		gIndPulses->clear();
+		gHits->clear();
 		
 		if(fgDebug)
 		{
@@ -892,19 +897,25 @@ void RSTPC_RunProcessor::T2Process()
 		
 		
 		
-		//Fill the TObjArrays before saving the tree
-		vector<RSTPC_Pulse*>::iterator vecIt;
-		for(vecIt=gColPulses->begin(); vecIt!=gColPulses->end(); vecIt++)
+		//Fill the TClonesArray before saving the tree
+		gEventData->ColPulses->ExpandCreate(gColPulses->size());
+		for(Int_t iPulse=0; iPulse<gColPulses->size(); iPulse++)
 		{
-			RSTPC_Pulse* ColPulse = (*vecIt);
-			gEventData->ColPulses->Add(ColPulse);
+			*(gEventData->ColPulses->At(iPulse)) = *(gColPulses->at(iPulse));
 		}
 		
-		for(vecIt=gIndPulses->begin(); vecIt!=gIndPulses->end(); vecIt++)
+		gEventData->IndPulses->ExpandCreate(gIndPulses->size());
+		for(Int_t iPulse=0; iPulse<gIndPulses->size(); iPulse++)
 		{
-			RSTPC_Pulse* IndPulse = (*vecIt);
-			gEventData->IndPulses->Add(IndPulse);
+			*(gEventData->IndPulses->At(iPulse)) = *(gIndPulses->at(iPulse));
 		}
+		
+		gEventData->Hits->ExpandCreate(gHits->size());
+		for(Int_t iHit=0; iHit<gHits->size(); iHit++)
+		{
+			*(gEventData->Hits->At(iPulse)) = *(gHits->at(iHit));
+		}
+		
 		
 		fOutT2->Fill();
 		
@@ -915,8 +926,13 @@ void RSTPC_RunProcessor::T2Process()
 			map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >::iterator mapIt;
 			for(mapIt=pulsesMap->begin(); mapIt!=pulsesMap->end(); ++mapIt)
 			{
+				vector<RSTPC_Pulse*>::iterator vecIt;
+				for(vecIt=mapIt->second->begin(); vecIt!=mapIt->second->end(); ++vecIt)
+				{
+					if(*vecIt) delete *vecIt;
+				}
 				if(mapIt->second)
-				{//Do not delete the pulses themself as they are owned by the TOjectArray(s) in the EventData class
+				{
 					delete mapIt->second;
 				}
 			}
@@ -925,7 +941,7 @@ void RSTPC_RunProcessor::T2Process()
 		}
 	}//End cycling over the events
 	
-	fOutFile -> WriteTObject(fOutT2,0,"overwrite");
+	fOutFile->WriteTObject(fOutT2,0,"overwrite");
 	fOutT2->ResetBranchAddresses();
 	
 	if(gEventData)
@@ -1268,7 +1284,7 @@ map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* RSTPC_RunProcessor::CombinePulses(vec
 
 Int_t RSTPC_RunProcessor::HitsFinder(map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* pulseMap, Bool_t debug)
 {
-	Int_t nHits = 0;
+	gHits->clear();
 	
 	//Make time slices and find the hits
 	Int_t timeSlice = (Int_t)(GetPeakingTime()*GetSamplingFreq()+0.5); //Trick to round to the closest integer
@@ -1344,8 +1360,11 @@ Int_t RSTPC_RunProcessor::HitsFinder(map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* 
 				
 				hit->fMeanTime = meantime;
 				hit->fMeanHeight = meanheight;
-			
-				gEventData->Hits->Add(hit);
+				
+				
+				gHits->push_back(hit);
+				
+				//gEventData->Hits->Add(hit);
 				
 				//if(debug)
 				if(false)
@@ -1365,15 +1384,12 @@ Int_t RSTPC_RunProcessor::HitsFinder(map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* 
 						cout << "           Hit ID: " << hit->fHitID << "->\tledge=" << hit->fLedge << "\tredge=" << hit->fRedge << "\tcentre time="<< hit->fCentreTime <<"\tmeantime=" << meantime << "\tmeanheight=" << meanheight << endl;
 					}
 				}
-				
-				
-				nHits++;
 			}
 			
 		}
 	}
 	
-	return nHits;
+	return gHits->size();
 }
 
 
@@ -1415,11 +1431,11 @@ EventData::~EventData()
 	if(Hits) delete Hits;
 }
 
-void EventData::Reset()
+void EventData::Reset(string opt)
 {
-	if(ColPulses) ColPulses->Clear("C");
-	if(IndPulses) IndPulses->Clear("C");
-	if(Hits) Hits->Clear("C");
+	if(ColPulses) ColPulses->Clear(opt.c_str());
+	if(IndPulses) IndPulses->Clear(opt.c_str());
+	if(Hits) Hits->Clear(opt.c_str());
 	
 	GoodEvent = true;
 }
