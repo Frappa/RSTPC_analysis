@@ -28,9 +28,15 @@ public:
 	
 	Int_t fMaxPos, fMinPos;
 	Int_t fLedge, fRedge;
+	Double_t fFWHM, fFWTM;
+	Double_t fMeanTime, fSigma;
 	
 	
+	//The first two constructors do not increase the pulse counter
 	RSTPC_Pulse(); //This needed by the rootsystem in order to save this class in a tree
+	RSTPC_Pulse(const RSTPC_Pulse &orig); //Copy constructor
+	
+	//This constructor is the only one that do increase the ID counter
 	RSTPC_Pulse(WireType _type);
 	~RSTPC_Pulse();
 	
@@ -38,6 +44,12 @@ public:
 	RSTPC_Pulse &operator=(const RSTPC_Pulse &orig);
 	const Bool_t operator==(const RSTPC_Pulse& right) const;
 	const Bool_t operator<(const RSTPC_Pulse& right) const;
+	
+	//This are not only setters, but they calculate the quantities
+	Double_t SetFWHM(vector<Double_t>* Wf);
+	Double_t SetFWTM(vector<Double_t>* Wf);
+	Double_t SetMeanTime(vector<Double_t>* Wf);
+	Double_t SetSigma(vector<Double_t>* Wf);
 	
 	static UInt_t GetNpulses();
 	static void ResetCounter();
@@ -69,6 +81,9 @@ public:
 	
 	//This constructor doesn't increase the counter 
 	RSTPC_Hit();
+	
+	//Copy constructor -> doesn't increase the counter
+	RSTPC_Hit(const RSTPC_Hit &orig);
 	
 	//This constructor increases the static counter. (For debugging purpouses)
 	RSTPC_Hit(const RSTPC_Pulse* ColPulse, const RSTPC_Pulse* IndPulse);

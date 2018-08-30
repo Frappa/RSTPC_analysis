@@ -71,7 +71,7 @@ public:
 	virtual void T2Process();
 	Bool_t IsProcT2init(){return fProcT2;};
 	
-	map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* CombinePulses(vector<RSTPC_Pulse*>* ColPulses,  vector<RSTPC_Pulse*>* IndPulses, Bool_t debug=false);
+	static map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* CombinePulses(vector<RSTPC_Pulse*>* ColPulses,  vector<RSTPC_Pulse*>* IndPulses, Bool_t debug=false);
 	
 	
 	

@@ -1079,6 +1079,12 @@ void RSTPC_RunProcessor::FindPulses(TH2D* h, WireType type, Bool_t debug)
 						
 						//Add the pulse to the array that will be saved into the tree
 						//gEventData->ColPulses->Add(pulse);
+						
+						pulse->FindPulseWidth(flWf, 0.5 );
+						pulse->FindPulseWidth(flWf, 0.1 );
+						pulse->FindPulseMean(flWf);
+						pulse->FindPulseSigma(flWf);
+						
 						gColPulses->push_back(pulse);
 					}
 					//if(iSamp>=(flWf->size()-1)) break; //This exits also from the for loop
@@ -1194,6 +1200,10 @@ void RSTPC_RunProcessor::FindPulses(TH2D* h, WireType type, Bool_t debug)
 						}//End of the loop to search for the negative part of the pulse
 						iSamp = pulse->fRedge+1; //The loop restarts from the sample after the end of the loop
 						//gEventData->IndPulses->Add(pulse);
+						
+						pulse->FindPulseMean(flWf);
+						pulse->FindPulseSigma(flWf);
+						
 						gIndPulses->push_back(pulse);
 					}//Exit from the pulse making scope
 					
@@ -1262,7 +1272,7 @@ Int_t RSTPC_RunProcessor::HitsFinder(map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* 
 	
 	//Make time slices and find the hits
 	Int_t timeSlice = (Int_t)(GetPeakingTime()*GetSamplingFreq()+0.5); //Trick to round to the closest integer
-	Int_t nSlices = ceil( (GetSamplingFreq()*GetDriftLenght()/GetDriftVel())/timeSlice );
+	Int_t nSlices = ceil( GetSamplingFreq()*GetDriftLenght()/GetDriftVel()/timeSlice );
 	
 	if(debug)
 	{
@@ -1281,6 +1291,13 @@ Int_t RSTPC_RunProcessor::HitsFinder(map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* 
 		Int_t ledge = TimeEdges.at(iSl);
 		Int_t redge = TimeEdges.at(iSl+1);
 		Int_t nsamps = redge-ledge+1;
+		
+		
+		//if(debug)
+		if(false)
+		{
+			cout << "Debug --> RSTPC_RunProcessor::HitsFinder(...): Slice " << iSl << ": ledge=" << ledge << "\tredge=" << redge << endl;
+		}
 		
 		map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >::iterator mapIt;
 		for(mapIt=pulseMap->begin(); mapIt!=pulseMap->end(); mapIt++)
@@ -1310,18 +1327,46 @@ Int_t RSTPC_RunProcessor::HitsFinder(map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* 
 				hit->fLedge = (Double_t)ledge;
 				hit->fRedge = (Double_t)redge;
 				hit->SetCentreTime( (hit->fLedge+hit->fRedge)/2 );
-			
+				
+				
 				//Find the meaen (weighted) quantities
-				Double_t meantime=0, meanheight=0;
+				Double_t meantime=0, meanheight=0, sum2=0;
 				for(Int_t kSamp=ledge; kSamp<=redge; kSamp++)
-				{
-					meantime += kSamp*(gColWfsVect->at(ColPulse->fWireNum)).at(kSamp)/nsamps;
+				{//Using the square as a measure of the pulse chunk on the specific interval
+					sum2 += pow((gColWfsVect->at(ColPulse->fWireNum)).at(kSamp) ,2);
+					meantime += kSamp* pow((gColWfsVect->at(ColPulse->fWireNum)).at(kSamp) ,2); 
 					meanheight += (gColWfsVect->at(ColPulse->fWireNum)).at(kSamp)/nsamps;
 				}
+				
+				meantime = meantime/sum2;
+				
+				if(meantime==0) meantime = ((Double_t)(redge-ledge))/2;
+				
 				hit->fMeanTime = meantime;
 				hit->fMeanHeight = meanheight;
 			
 				gEventData->Hits->Add(hit);
+				
+				//if(debug)
+				if(false)
+				{
+					cout << "           Hit ID: " << hit->fHitID << "->\tledge=" << hit->fLedge << "\tredge=" << hit->fRedge << "\tcentre time="<< hit->fCentreTime <<"\tmeantime=" << meantime << "\tmeanheight=" << meanheight << endl;
+				}
+				else
+				{
+					if(hit->fCentreTime <= 0)
+					{
+						cout << "WARNING ---> RSTPC_RunProcessor::HitsFinder(...): Non positive centre time!" << endl;
+						cout << "           Hit ID: " << hit->fHitID << "->\tledge=" << hit->fLedge << "\tredge=" << hit->fRedge << "\tcentre time="<< hit->fCentreTime <<"\tmeantime=" << meantime << "\tmeanheight=" << meanheight << endl;
+					}
+					else if(meantime<=0)
+					{
+						cout << "WARNING ---> RSTPC_RunProcessor::HitsFinder(...): Non positive mean time!" << endl;
+						cout << "           Hit ID: " << hit->fHitID << "->\tledge=" << hit->fLedge << "\tredge=" << hit->fRedge << "\tcentre time="<< hit->fCentreTime <<"\tmeantime=" << meantime << "\tmeanheight=" << meanheight << endl;
+					}
+				}
+				
+				
 				nHits++;
 			}
 			
