@@ -798,7 +798,6 @@ void RSTPC_RunProcessor::T2Process()
 {
 	if(!fProcT2) return;
 	
-	
 	Int_t nEvs = fT1wr->fChain->GetEntries();
 	
 	
@@ -897,28 +896,34 @@ void RSTPC_RunProcessor::T2Process()
 		}
 		
 		
-		
 		//Fill the TClonesArray before saving the tree
-		
-		gEventData->ColPulses->ExpandCreate(gColPulses->size());
-		TClonesArray &arr = *(gEventData->ColPulses);
-		for(Int_t iPulse=0; iPulse<gColPulses->size(); iPulse++)
 		{
-			new(arr[iPulse]) RSTPC_Pulse(*gColPulses->at(iPulse));
+			gEventData->ColPulses->ExpandCreate(gColPulses->size());
+			TClonesArray &arr = *(gEventData->ColPulses);
+			for(Int_t iPulse=0; iPulse<gColPulses->size(); iPulse++)
+			{
+				new(arr[iPulse]) RSTPC_Pulse(*gColPulses->at(iPulse));
+			}
 		}
 		
-		gEventData->IndPulses->ExpandCreate(gIndPulses->size());
-		arr = *(gEventData->IndPulses);
-		for(Int_t iPulse=0; iPulse<gIndPulses->size(); iPulse++)
+		
 		{
-			new(arr[iPulse]) RSTPC_Pulse(*gIndPulses->at(iPulse));
+			gEventData->IndPulses->ExpandCreate(gIndPulses->size());
+			TClonesArray &arr = *(gEventData->IndPulses);
+			for(Int_t iPulse=0; iPulse<gIndPulses->size(); iPulse++)
+			{
+				new(arr[iPulse]) RSTPC_Pulse(*gIndPulses->at(iPulse));
+			}
 		}
 		
-		gEventData->Hits->ExpandCreate(gHits->size());
-		arr = *(gEventData->Hits);
-		for(Int_t iHit=0; iHit<gHits->size(); iHit++)
+		
 		{
-			new(arr[iHit]) RSTPC_Hit(*gHits->at(iHit));
+			gEventData->Hits->ExpandCreate(gHits->size());
+			TClonesArray &arr = *(gEventData->Hits);
+			for(Int_t iHit=0; iHit<gHits->size(); iHit++)
+			{
+				new(arr[iHit]) RSTPC_Hit(*gHits->at(iHit));
+			}
 		}
 		
 		
@@ -931,11 +936,6 @@ void RSTPC_RunProcessor::T2Process()
 			map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >::iterator mapIt;
 			for(mapIt=pulsesMap->begin(); mapIt!=pulsesMap->end(); ++mapIt)
 			{
-				vector<RSTPC_Pulse*>::iterator vecIt;
-				for(vecIt=mapIt->second->begin(); vecIt!=mapIt->second->end(); ++vecIt)
-				{
-					if(*vecIt) delete *vecIt;
-				}
 				if(mapIt->second)
 				{
 					delete mapIt->second;
@@ -944,6 +944,23 @@ void RSTPC_RunProcessor::T2Process()
 			delete pulsesMap;
 			pulsesMap = NULL;
 		}
+		
+		for(Int_t iPulse=0; iPulse<gColPulses->size(); iPulse++)
+		{
+			if(gColPulses->at(iPulse)) delete gColPulses->at(iPulse);
+		}
+		
+		for(Int_t iPulse=0; iPulse<gIndPulses->size(); iPulse++)
+		{
+			if(gIndPulses->at(iPulse)) delete gIndPulses->at(iPulse);
+		}
+		
+		for(Int_t iHit=0; iHit<gHits->size(); iHit++)
+		{
+			if(gHits->at(iHit)) delete gHits->at(iHit);
+		}
+		
+		//return;
 	}//End cycling over the events
 	
 	fOutFile->WriteTObject(fOutT2,0,"overwrite");
@@ -1297,7 +1314,7 @@ Int_t RSTPC_RunProcessor::HitsFinder(map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* 
 	
 	if(debug)
 	{
-		cout << "Debug --> RSTPC_RunProcessor::HitsFinder(...): Using " << nSlices << " to determine the hits." << endl;
+		cout << "Debug --> RSTPC_RunProcessor::HitsFinder(...): Using " << nSlices << " time slices to determine the hits." << endl;
 		cout << "Debug --> RSTPC_RunProcessor::HitsFinder(...): Time slice: " << timeSlice << " samples = " << timeSlice/GetSamplingFreq() << " usecs = " << GetDriftVel()*timeSlice/GetSamplingFreq() << " mm." << endl;
 	}
 	
