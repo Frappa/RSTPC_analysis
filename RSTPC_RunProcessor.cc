@@ -779,6 +779,7 @@ void RSTPC_RunProcessor::DescribeT2()
 	
 	if(!TClassTable::GetDict("RSTPC_Hits")) {
 		gSystem->Load("RSTPC_Hits");
+		gROOT->ProcessLine("#include \"RSTPC_Hits.hh\"");
 	}
 	
 	fOutT2->Branch("GoodEvent",&gEventData->GoodEvent,"GoodEvent/O");
@@ -898,22 +899,26 @@ void RSTPC_RunProcessor::T2Process()
 		
 		
 		//Fill the TClonesArray before saving the tree
+		
 		gEventData->ColPulses->ExpandCreate(gColPulses->size());
+		TClonesArray &arr = *(gEventData->ColPulses);
 		for(Int_t iPulse=0; iPulse<gColPulses->size(); iPulse++)
 		{
-			*(gEventData->ColPulses->At(iPulse)) = *(gColPulses->at(iPulse));
+			new(arr[iPulse]) RSTPC_Pulse(*gColPulses->at(iPulse));
 		}
 		
 		gEventData->IndPulses->ExpandCreate(gIndPulses->size());
+		arr = *(gEventData->IndPulses);
 		for(Int_t iPulse=0; iPulse<gIndPulses->size(); iPulse++)
 		{
-			*(gEventData->IndPulses->At(iPulse)) = *(gIndPulses->at(iPulse));
+			new(arr[iPulse]) RSTPC_Pulse(*gIndPulses->at(iPulse));
 		}
 		
 		gEventData->Hits->ExpandCreate(gHits->size());
+		arr = *(gEventData->Hits);
 		for(Int_t iHit=0; iHit<gHits->size(); iHit++)
 		{
-			*(gEventData->Hits->At(iPulse)) = *(gHits->at(iHit));
+			new(arr[iHit]) RSTPC_Hit(*gHits->at(iHit));
 		}
 		
 		
@@ -1096,10 +1101,10 @@ void RSTPC_RunProcessor::FindPulses(TH2D* h, WireType type, Bool_t debug)
 						//Add the pulse to the array that will be saved into the tree
 						//gEventData->ColPulses->Add(pulse);
 						
-						pulse->FindPulseWidth(flWf, 0.5 );
-						pulse->FindPulseWidth(flWf, 0.1 );
-						pulse->FindPulseMean(flWf);
-						pulse->FindPulseSigma(flWf);
+						pulse->SetFWHM(flWf);
+						pulse->SetFWTM(flWf);
+						pulse->SetMeanTime(flWf);
+						pulse->SetSigma(flWf);
 						
 						gColPulses->push_back(pulse);
 					}
@@ -1217,8 +1222,8 @@ void RSTPC_RunProcessor::FindPulses(TH2D* h, WireType type, Bool_t debug)
 						iSamp = pulse->fRedge+1; //The loop restarts from the sample after the end of the loop
 						//gEventData->IndPulses->Add(pulse);
 						
-						pulse->FindPulseMean(flWf);
-						pulse->FindPulseSigma(flWf);
+						pulse->SetMeanTime(flWf);
+						pulse->SetSigma(flWf);
 						
 						gIndPulses->push_back(pulse);
 					}//Exit from the pulse making scope
@@ -1414,12 +1419,14 @@ void RSTPC_RunProcessor::CloseRun()
 
 EventData::EventData()
 {
-	ColPulses = new TObjArray;
-	ColPulses->SetOwner(kTRUE);
-	IndPulses = new TObjArray;
-	IndPulses->SetOwner(kTRUE);
-	Hits = new TObjArray;
-	Hits->SetOwner(kTRUE);
+	ColPulses = new TClonesArray("RSTPC_Pulse");
+	//ColPulses->SetOwner(kTRUE);
+	
+	IndPulses = new TClonesArray("RSTPC_Pulse");
+	//IndPulses->SetOwner(kTRUE);
+	
+	Hits = new TClonesArray("RSTPC_Hit");
+	//Hits->SetOwner(kTRUE);
 	
 	GoodEvent = true;
 }

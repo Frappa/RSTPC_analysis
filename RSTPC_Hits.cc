@@ -35,7 +35,7 @@ RSTPC_Pulse::RSTPC_Pulse():fWireType(kUndef)
 	fSigma = -1;
 }
 
-RSTPC_Pulse(const RSTPC_Pulse &orig)
+RSTPC_Pulse::RSTPC_Pulse(const RSTPC_Pulse &orig)
 {
 	*this = orig;
 }
@@ -76,7 +76,6 @@ RSTPC_Pulse& RSTPC_Pulse::operator=(const RSTPC_Pulse &orig)
 	fFWTM = orig.fFWTM;
 	fMeanTime = orig.fMeanTime;
 	fSigma = orig.fSigma;
-}
 	
 	return *this;
 }
@@ -136,7 +135,7 @@ Double_t RSTPC_Pulse::SetFWHM(vector<Double_t>* flWf)
 		if( (jSamp>=nSamps) || (jSamp==fRedge) ) break;
 	}while( (flWf->at(jSamp) > 0.5*fMax) && (jSamp<=fRedge) );
 	
-	if( jSamp>=m_nsamples ){
+	if( jSamp>=nSamps ){
 		xup = jSamp;
 	}else if( flWf->at(jSamp) == 0.5*fMax ){
 		xup =jSamp;
@@ -150,7 +149,7 @@ Double_t RSTPC_Pulse::SetFWHM(vector<Double_t>* flWf)
 }
 
 
-Double_t RSTPC_Pulse::SetFWTM(vector<Double_t>* Wf)
+Double_t RSTPC_Pulse::SetFWTM(vector<Double_t>* flWf)
 {
 	if(!flWf) return -1;
 	
@@ -186,7 +185,7 @@ Double_t RSTPC_Pulse::SetFWTM(vector<Double_t>* Wf)
 		if( (jSamp>=nSamps) || (jSamp==fRedge) ) break;
 	}while( (flWf->at(jSamp) > 0.1*fMax) && (jSamp<=fRedge) );
 	
-	if( jSamp>=m_nsamples ){
+	if( jSamp>=nSamps ){
 		xup = jSamp;
 	}else if( flWf->at(jSamp) == 0.1*fMax ){
 		xup =jSamp;
@@ -199,7 +198,7 @@ Double_t RSTPC_Pulse::SetFWTM(vector<Double_t>* Wf)
 }
 
 
-Double_t RSTPC_Pulse::SetMeanTime(vector<Double_t>* Wf)
+Double_t RSTPC_Pulse::SetMeanTime(vector<Double_t>* flWf)
 {
 	if(!flWf) return -1;
 	
@@ -209,7 +208,7 @@ Double_t RSTPC_Pulse::SetMeanTime(vector<Double_t>* Wf)
 	
 	for(Int_t iSamp=fLedge; iSamp<=fRedge; iSamp++)
 	{
-		val = pow(Wf->at(iSamp), 2)
+		val = pow(flWf->at(iSamp), 2);
 		sum2 += val;
 		fMeanTime += iSamp*val;
 	}
@@ -222,11 +221,11 @@ Double_t RSTPC_Pulse::SetMeanTime(vector<Double_t>* Wf)
 }
 
 
-Double_t RSTPC_Pulse::SetSigma(vector<Double_t>* Wf)
+Double_t RSTPC_Pulse::SetSigma(vector<Double_t>* flWf)
 {
 	if(!flWf) return -1;
 	
-	if(fMeanTime<=0) SetMeanTime(Wf);
+	if(fMeanTime<=0) SetMeanTime(flWf);
 	
 	Double_t val, sum2=0;
 	
@@ -234,7 +233,7 @@ Double_t RSTPC_Pulse::SetSigma(vector<Double_t>* Wf)
 	
 	for(Int_t iSamp=fLedge; iSamp<=fRedge; iSamp++)
 	{
-		val = pow(Wf->at(iSamp), 2)
+		val = pow(flWf->at(iSamp), 2);
 		sum2 += val;
 		fSigma += val*pow((iSamp-fMeanTime), 2);
 	}

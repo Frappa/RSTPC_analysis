@@ -54,7 +54,7 @@ public:
 	static UInt_t GetNpulses();
 	static void ResetCounter();
 	
-	ClassDef(RSTPC_Pulse,1)
+	ClassDef(RSTPC_Pulse,2)
 };
 
 
@@ -101,7 +101,7 @@ public:
 	
 	void SetCentreTime(Double_t centre); //In samples units. It should correspond to the center of a time slice.
 	
-	ClassDef(RSTPC_Hit,1)
+	ClassDef(RSTPC_Hit,2)
 
 };
 
