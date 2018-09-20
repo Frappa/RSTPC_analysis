@@ -9,13 +9,13 @@
 #include <vector>
 
 
-RSTPC_T2wrapper::RSTPC_T2wrapper() : fChain(0), fT1wr(0), fInFile(0), fInFileOwner(false), fClassInit(false), fT1wrOwner(false)
+RSTPC_T2wrapper::RSTPC_T2wrapper() : fChain(0), fT1wr(0), fInFile(0), ColPulses(NULL), IndPulses(NULL), Hits(NULL), fInFileOwner(false), fClassInit(false), fT1wrOwner(false)
 {
 	return;
 }
 
 
-RSTPC_T2wrapper::RSTPC_T2wrapper(string filename, Bool_t bMakeT1w) : fChain(0), fT1wr(0), fInFile(0), fInFileOwner(false), fClassInit(false), fT1wrOwner(false)
+RSTPC_T2wrapper::RSTPC_T2wrapper(string filename, Bool_t bMakeT1w) : fChain(0), fT1wr(0), fInFile(0), ColPulses(NULL), IndPulses(NULL), Hits(NULL), fInFileOwner(false), fClassInit(false), fT1wrOwner(false)
 {
 	TFile* f = (TFile*)gROOT->FindObject( filename.c_str() );
 	if(f && f->IsOpen())
@@ -41,6 +41,7 @@ RSTPC_T2wrapper::RSTPC_T2wrapper(string filename, Bool_t bMakeT1w) : fChain(0), 
 		return;
 	}
 	
+	
 	Init(tree);
 	
 	if(fClassInit)
@@ -49,7 +50,7 @@ RSTPC_T2wrapper::RSTPC_T2wrapper(string filename, Bool_t bMakeT1w) : fChain(0), 
 		
 		if(bMakeT1w)
 		{
-			fT1wr = new RSTPC_T1wrapper(fChain);
+			fT1wr = new RSTPC_T1wrapper(fInFile);
 			fT1wr->SetFileOwner(false);
 			if(!fT1wr->IsInit())
 			{
@@ -62,7 +63,7 @@ RSTPC_T2wrapper::RSTPC_T2wrapper(string filename, Bool_t bMakeT1w) : fChain(0), 
 }
 
 
-RSTPC_T2wrapper::RSTPC_T2wrapper(TFile* f, Bool_t bMakeT1w) : fChain(0), fT1wr(0), fInFile(0), fInFileOwner(false), fClassInit(false), fT1wrOwner(false)
+RSTPC_T2wrapper::RSTPC_T2wrapper(TFile* f, Bool_t bMakeT1w) : fChain(0), fT1wr(0), fInFile(0), ColPulses(NULL), IndPulses(NULL), Hits(NULL), fInFileOwner(false), fClassInit(false), fT1wrOwner(false)
 {
 	if( (!f) || (!f->IsOpen()) ) return;
 	
@@ -89,7 +90,7 @@ RSTPC_T2wrapper::RSTPC_T2wrapper(TFile* f, Bool_t bMakeT1w) : fChain(0), fT1wr(0
 		
 		if(bMakeT1w)
 		{
-			fT1wr = new RSTPC_T1wrapper(fChain);
+			fT1wr = new RSTPC_T1wrapper(fInFile);
 			fT1wr->SetFileOwner(false);
 			if(!fT1wr->IsInit())
 			{
@@ -102,7 +103,7 @@ RSTPC_T2wrapper::RSTPC_T2wrapper(TFile* f, Bool_t bMakeT1w) : fChain(0), fT1wr(0
 }
 
 
-RSTPC_T2wrapper::RSTPC_T2wrapper(RSTPC_T1wrapper* t1w) : fChain(0), fT1wr(0), fInFile(0), fInFileOwner(false), fClassInit(false), fT1wrOwner(false)
+RSTPC_T2wrapper::RSTPC_T2wrapper(RSTPC_T1wrapper* t1w) : fChain(0), fT1wr(0), fInFile(0), ColPulses(NULL), IndPulses(NULL), Hits(NULL), fInFileOwner(false), fClassInit(false), fT1wrOwner(false)
 {
 	if(!TClassTable::GetDict("RSTPC_Hits")) {
 		gSystem->Load("RSTPC_Hits");
@@ -132,7 +133,7 @@ RSTPC_T2wrapper::RSTPC_T2wrapper(RSTPC_T1wrapper* t1w) : fChain(0), fT1wr(0), fI
 }
 
 
-RSTPC_T2wrapper::RSTPC_T2wrapper(TTree *tree, Bool_t bMakeT1w) : fChain(0), fT1wr(0), fInFile(0), fClassInit(false), fT1wrOwner(false)
+RSTPC_T2wrapper::RSTPC_T2wrapper(TTree *tree, Bool_t bMakeT1w) : fChain(0), fT1wr(0), fInFile(0), ColPulses(NULL), IndPulses(NULL), Hits(NULL), fClassInit(false), fT1wrOwner(false)
 {
 // if parameter tree is not specified (or zero), connect the file
 // used to generate this class and read the Tree.
@@ -151,7 +152,7 @@ RSTPC_T2wrapper::RSTPC_T2wrapper(TTree *tree, Bool_t bMakeT1w) : fChain(0), fT1w
 	
 	if(fClassInit && bMakeT1w)
 	{
-		fT1wr = new RSTPC_T1wrapper((TTree*)tree->GetCurrentFile()->Get("T1"));
+		fT1wr = new RSTPC_T1wrapper(fInFile);
 		fT1wr->SetFileOwner(false);
 		if(!fT1wr->IsInit())
 		{
@@ -175,6 +176,56 @@ RSTPC_T2wrapper::~RSTPC_T2wrapper()
 	{
 		delete fT1wr;
 	}
+}
+
+
+void RSTPC_T2wrapper::Init(TTree *tree)
+{
+   // The Init() function is called when the selector needs to initialize
+   // a new tree or chain. Typically here the branch addresses and branch
+   // pointers of the tree will be set.
+   // It is normally not necessary to make changes to the generated
+   // code, but the routine can be extended by the user if needed.
+   // Init() will be called many times when running on PROOF
+   // (once per file to be processed).
+	
+	fClassInit = false;
+	
+	if (!tree) return;
+	
+	// Set object pointer
+	if(ColPulses)
+	{
+		delete ColPulses;
+	}
+	ColPulses = new TClonesArray("RSTPC_Pulse");
+	
+	if(IndPulses)
+	{
+		delete IndPulses;
+	}
+	IndPulses = new TClonesArray("RSTPC_Pulse");
+	
+	if(Hits)
+	{
+		delete Hits;
+	}
+	Hits = new TClonesArray("RSTPC_Hit");
+	
+	// Set branch addresses and branch pointers
+	
+	fChain = tree;
+	fCurrent = -1;
+	//fChain->SetMakeClass(1);
+	
+	fChain->SetBranchAddress("GoodEvent", &GoodEvent, &b_GoodEvent);
+	fChain->SetBranchAddress("ColPulses_NS", &ColPulses, &b_ColPulses);
+	fChain->SetBranchAddress("IndPulses_NS", &IndPulses, &b_IndPulses);
+	fChain->SetBranchAddress("Hits_NS", &Hits, &b_Hits);
+	
+	Notify();
+	
+	fClassInit = true;
 }
 
 
@@ -224,38 +275,6 @@ Long64_t RSTPC_T2wrapper::LoadTree(Long64_t entry)
       Notify();
    }
    return centry;
-}
-
-
-void RSTPC_T2wrapper::Init(TTree *tree)
-{
-   // The Init() function is called when the selector needs to initialize
-   // a new tree or chain. Typically here the branch addresses and branch
-   // pointers of the tree will be set.
-   // It is normally not necessary to make changes to the generated
-   // code, but the routine can be extended by the user if needed.
-   // Init() will be called many times when running on PROOF
-   // (once per file to be processed).
-	
-	fClassInit = false;
-	
-	// Set object pointer
-	ColPulses = 0;
-	IndPulses = 0;
-	Hits = 0;
-	// Set branch addresses and branch pointers
-	if (!tree) return;
-	fChain = tree;
-	fCurrent = -1;
-	fChain->SetMakeClass(1);
-
-	fChain->SetBranchAddress("GoodEvent", &GoodEvent, &b_GoodEvent);
-	fChain->SetBranchAddress("ColPulses", &ColPulses, &b_ColPulses);
-	fChain->SetBranchAddress("IndPulses", &IndPulses, &b_IndPulses);
-	fChain->SetBranchAddress("Hits", &Hits, &b_Hits);
-	Notify();
-	
-	fClassInit = true;
 }
 
 

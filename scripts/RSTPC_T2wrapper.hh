@@ -29,10 +29,11 @@ public :
 	
 	// Declaration of leaf types
 	Bool_t           GoodEvent;
-	TObjArray       *ColPulses;
-	TObjArray       *IndPulses;
-	TObjArray       *Hits;
-
+	TClonesArray       *ColPulses;
+	TClonesArray       *IndPulses;
+	TClonesArray       *Hits;
+	
+	
 	// List of branches
 	TBranch        *b_GoodEvent;   //!
 	TBranch        *b_ColPulses;   //!
@@ -68,6 +69,7 @@ private:
 	Bool_t fInFileOwner;
 	Bool_t fT1wrOwner;
 	Bool_t fClassInit;
+	
 };
 
 #endif /* RSTPC_T2WRAPPER_HH */
