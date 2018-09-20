@@ -4,6 +4,7 @@
 #include "MppcTreeWrapper.hh"
 
 
+
 //#if defined(__CLING__) && defined(__ROOTCLING__)
 RSTPC_RunProcessor *merger = NULL;
 void RSTPC_MergeData(Int_t RunNumber)
@@ -13,7 +14,7 @@ void RSTPC_MergeData(Int_t RunNumber)
 	
 	merger = new RSTPC_RunProcessor;
 	
-	merger->GetTpcManager()->Set_CMnoiseRej(true, 5);
+	merger->GetTpcManager()->Set_CMnoiseRej(true, 10);
 	merger->GetTpcManager()->SetBaselineROI(2000, 3000);
 	merger->GetTpcManager()->SetSigmaThr(3.0);
 	merger->GetTpcManager()->SetPrintFlag(false);

@@ -26,7 +26,7 @@ void DrawPulsesLenghts()
 {
 	if(!t2w)
 	{
-		t2w = new RSTPC_T2wrapper("/home/francescop/data/ResistiveShell/merged/RSTPC_Run000002032_Merged.root", true);
+		t2w = new RSTPC_T2wrapper("/home/francescop/data/ResistiveShell/merged/test/RSTPC_Run000002032_Merged.root", true);
 	}
 	
 	if( !t2w->IsInit() ) return;
