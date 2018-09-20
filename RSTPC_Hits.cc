@@ -7,6 +7,10 @@
 #include "Rtypes.h"
 
 
+using namespace std;
+
+
+
 ClassImp(RSTPC_Pulse)
 
 //#ifndef RSTPC_HITS_STATICS
@@ -33,6 +37,12 @@ RSTPC_Pulse::RSTPC_Pulse():fWireType(kUndef)
 	fFWTM = -1;
 	fMeanTime = -1;
 	fSigma = -1;
+	fColCoinNum = 0;
+	fIndCoinNum = 0;
+	
+	//On this constructor the IDs are not used and the coincidences as well
+	fColCoinIDs = NULL;
+	fIndCoinIDs = NULL;
 }
 
 RSTPC_Pulse::RSTPC_Pulse(const RSTPC_Pulse &orig)
@@ -50,11 +60,19 @@ RSTPC_Pulse::RSTPC_Pulse(WireType _type)
 	fFWTM = -1;
 	fMeanTime = -1;
 	fSigma = -1;
+	fColCoinNum = 0;
+	fIndCoinNum = 0;
+	
+	fColCoinIDs = new set<UInt_t>;
+	fIndCoinIDs = new set<UInt_t>;
 }
 
 RSTPC_Pulse::~RSTPC_Pulse()
 {
 	TObject::Clear();
+	
+	if(fColCoinIDs) delete fColCoinIDs;
+	if(fIndCoinIDs) delete fIndCoinIDs;
 }
 
 RSTPC_Pulse& RSTPC_Pulse::operator=(const RSTPC_Pulse &orig)
@@ -76,6 +94,15 @@ RSTPC_Pulse& RSTPC_Pulse::operator=(const RSTPC_Pulse &orig)
 	fFWTM = orig.fFWTM;
 	fMeanTime = orig.fMeanTime;
 	fSigma = orig.fSigma;
+	
+	fColCoinNum = orig.fColCoinNum;
+	fIndCoinNum = orig.fIndCoinNum;
+	
+	if(!fColCoinIDs) fColCoinIDs = new set<UInt_t>;
+	if(orig.fColCoinIDs) (*fColCoinIDs) = (*orig.fColCoinIDs);
+	
+	if(!fIndCoinIDs) fIndCoinIDs = new set<UInt_t>;
+	if(orig.fIndCoinIDs) (*fIndCoinIDs) = (*orig.fIndCoinIDs);
 	
 	return *this;
 }

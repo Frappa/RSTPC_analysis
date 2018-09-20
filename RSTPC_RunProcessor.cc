@@ -790,6 +790,11 @@ void RSTPC_RunProcessor::DescribeT2()
 	fOutT2->Branch("IndPulses", "TClonesArray", &gEventData->IndPulses, 32000, 2);
 	fOutT2->Branch("Hits", "TClonesArray", &gEventData->Hits, 32000, 2);
 	
+	//Same branches without splitting the class members
+	fOutT2->Branch("ColPulses_NS", "TClonesArray", &gEventData->ColPulses, 32000, 0);
+	fOutT2->Branch("IndPulses_NS", "TClonesArray", &gEventData->IndPulses, 32000, 0);
+	fOutT2->Branch("Hits_NS", "TClonesArray", &gEventData->Hits, 32000, 0);
+	
 	fProcT2 = true;
 }
 
@@ -800,7 +805,7 @@ void RSTPC_RunProcessor::T2Process()
 	
 	Int_t nEvs = fT1wr->fChain->GetEntries();
 	
-	
+	//This is obsolete and should be removed
 	map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* pulsesMap = NULL;
 	
 	if(fgDebug)
@@ -865,7 +870,7 @@ void RSTPC_RunProcessor::T2Process()
 		FindPulses(fT1wr->IndHist, kInd, fgDebug&&(iEv%fgNevPrint==0));
 		
 		
-		//Now find which induction pulses correspond to each collection pulses
+		//Now find which induction pulses correspond to each collection pulse
 		if(fgDebug)
 		{
 			if(iEv%fgNevPrint==0)
@@ -873,12 +878,18 @@ void RSTPC_RunProcessor::T2Process()
 				cout << "Debug --> RSTPC_RunProcessor::T2Process(): Found " << gColPulses->size() << " collection pulses and " << gIndPulses->size() << " induction pulses. Combining them." << endl;
 			}
 		}
-		pulsesMap = CombinePulses(gColPulses, gIndPulses, fgDebug&&(iEv%fgNevPrint==0)); //The key is a collection pulse the value is the vector of the corresponding induction pulse
+		//This below is the old algorithm
+		//pulsesMap = CombinePulses(gColPulses, gIndPulses, fgDebug&&(iEv%fgNevPrint==0)); //The key is a collection pulse the value is the vector of the corresponding induction pulse
 		
+		(*gHits) = CombinePulses(gColPulses, gIndPulses, fgDebug&&(iEv%fgNevPrint==0));
+		
+		/*
+		//Obsolete part should be removed
 		if( !pulsesMap )
 		{
 			cout << "ERROR --> RSTPC_RunProcessor::T2Process(): The \"pulsesMap\" pointer is 0. Event " << iEv << " is broken." << endl;
 		}
+		*/
 		
 		if(fgDebug)
 		{
@@ -888,7 +899,9 @@ void RSTPC_RunProcessor::T2Process()
 			}
 		}
 		
-		Int_t nHits = HitsFinder(pulsesMap, fgDebug&&(iEv%fgNevPrint==0));
+		//This is obsolete and should be removed
+		//Int_t nHits = HitsFinder(pulsesMap, fgDebug&&(iEv%fgNevPrint==0));
+		Int_t nHits = gHits->size();
 		
 		if(fgDebug && (iEv%fgNevPrint==0))
 		{
@@ -1256,6 +1269,7 @@ void RSTPC_RunProcessor::FindPulses(TH2D* h, WireType type, Bool_t debug)
 }
 
 
+/*
 map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* RSTPC_RunProcessor::CombinePulses(vector<RSTPC_Pulse*>* ColPulses,  vector<RSTPC_Pulse*>* IndPulses, Bool_t debug)
 {
 	if( !(ColPulses && IndPulses) ) return NULL;
@@ -1273,14 +1287,33 @@ map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* RSTPC_RunProcessor::CombinePulses(vec
 	//Int_t timeWindow = (Int_t)(GetPeakingTime()*GetSamplingFreq()+0.5); //Trick to round to the closest integer
 	
 	
-	vector<RSTPC_Pulse*>::iterator cVecIt, iVecIt;
+	
+	vector<RSTPC_Pulse*>::iterator cVecIt;
 	
 	for(cVecIt=ColPulses->begin(); cVecIt!=ColPulses->end(); cVecIt++ )
-	{
-		vector<RSTPC_Pulse*> *IndPulsesVec = new vector<RSTPC_Pulse*>;
+	{//Cycling over the collection pulses
 		
 		RSTPC_Pulse *ColPulse = (*cVecIt);
+		ColPulse->fColCoinIDs->clear(); //This should not be necessary
 		
+		//Determine how find how many collection pulses are in coincidence with this pulse (inefficient algorithm)
+		vector<RSTPC_Pulse*>::iterator cVecIt2;
+		for(cVecIt2=ColPulses->begin(); cVecIt2!=ColPulses->end(); cVecIt2++ )
+		{
+			if(cVecIt2!=cVecIt)
+			{
+				if( !( (ColPulse->fLedge>(*cVecIt2)->fRedge)||(ColPulse->fRedge<(*cVecIt2)->fLedge) ) )
+				{//This is the overlapping condition
+					ColPulse->fColCoinIDs->insert( (*cVecIt2)->fPulseID );
+				}
+			}
+		}
+		
+		
+		//Fill the vector of the induction pulses in coincidence with this collection pulse
+		vector<RSTPC_Pulse*> *IndPulsesVec = new vector<RSTPC_Pulse*>;
+		
+		vector<RSTPC_Pulse*>::iterator iVecIt;
 		for(iVecIt=IndPulses->begin(); iVecIt!=IndPulses->end(); iVecIt++ )
 		{
 			RSTPC_Pulse *IndPulse = (*iVecIt);
@@ -1288,22 +1321,183 @@ map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* RSTPC_RunProcessor::CombinePulses(vec
 			if( !( (ColPulse->fLedge>IndPulse->fRedge)||(ColPulse->fRedge<IndPulse->fLedge) ) )
 			{//This is the overlapping condition
 				IndPulsesVec->push_back(IndPulse);
+				ColPulse->fIndCoinIDs->insert( IndPulse->fPulseID );
+				IndPulse->fColCoinIDs->insert( ColPulse->fPulseID );
 			}
-			
-			if(IndPulsesVec->size()>0)
-			{
-				if(debug) nMatches += IndPulsesVec->size();
-			}
-			(*outmap)[ColPulse] = IndPulsesVec;
 		}
+		
+		ColPulse->fColCoinNum = ColPulse->fColCoinIDs->size();
+		ColPulse->fIndCoinNum = ColPulse->fIndCoinIDs->size();
+		
+		if(ColPulse->fIndCoinNum>0)
+		{
+			if(debug) nMatches += ColPulse->fIndCoinNum;
+		}
+		(*outmap)[ColPulse] = IndPulsesVec;
 	}
+	
+	
+	//Cycle over the induction pulses only to determine the coincidences with other induction pulses
+	for(iVecIt=IndPulses->begin(); iVecIt!=IndPulses->end(); iVecIt++ )
+	{
+		(*iVecIt)->fIndCoinIDs->clear();//Should not be necessary
+		
+		vector<RSTPC_Pulse*>::iterator iVecIt2;
+		for(iVecIt2=IndPulses->begin(); iVecIt2!=IndPulses->end(); iVecIt2++ )
+		{
+			if(iVecIt2!=iVecIt)
+			{
+				if( !( ((*iVecIt)->fLedge>(*iVecIt2)->fRedge) || ((*iVecIt)->fRedge<(*iVecIt2)->fLedge) ) )
+				{//This is the overlapping condition
+					(*iVecIt)->fIndCoinIDs->insert((*iVecIt2)->fPulseID);
+				}
+			}
+		}
+		
+		(*iVecIt)->fColCoinNum = (*iVecIt)->fColCoinIDs->size();
+		(*iVecIt)->fIndCoinNum = (*iVecIt)->fIndCoinIDs->size();
+	}
+	
 	
 	if(debug) cout << "Debug --> RSTPC_RunProcessor::CombinePulses(...): Total matches found: " << nMatches << endl;
 	
 	return outmap;
 }
+*/
+
+vector<RSTPC_Hit*> RSTPC_RunProcessor::CombinePulses(vector<RSTPC_Pulse*>* ColPulses,  vector<RSTPC_Pulse*>* IndPulses, Bool_t debug)
+{//This should be the smart and faster version of the routine above and produces directly the hits
+	vector<RSTPC_Hit*> outHits;
+	
+	if( !(ColPulses && IndPulses) ) return outHits;
+	if( !((ColPulses->size()>0) && (IndPulses->size()>0)) ) return outHits; //They must be empty!!!
+	
+	{
+		vector<RSTPC_Pulse*>::iterator cVecIt;
+		for(cVecIt=ColPulses->begin(); cVecIt!=ColPulses->end(); cVecIt++ )
+		{
+			(*cVecIt)->fColCoinIDs->clear(); //This should not be necessary
+			(*cVecIt)->fColCoinNum = 0;
+			(*cVecIt)->fIndCoinIDs->clear(); //This should not be necessary
+			(*cVecIt)->fIndCoinNum = 0;
+		}
+	
+		vector<RSTPC_Pulse*>::iterator iVecIt;
+		for(iVecIt=ColPulses->begin(); iVecIt!=ColPulses->end(); iVecIt++ )
+		{
+			(*iVecIt)->fColCoinIDs->clear(); //This should not be necessary
+			(*iVecIt)->fColCoinNum = 0;
+			(*iVecIt)->fIndCoinIDs->clear(); //This should not be necessary
+			(*iVecIt)->fIndCoinNum = 0;
+		}
+	}
+	
+	
+	vector<RSTPC_Pulse*>::iterator cVecIt;
+	for(cVecIt=ColPulses->begin(); cVecIt!=ColPulses->end(); cVecIt++ )
+	{//Cycling over the collection pulses
+		
+		RSTPC_Pulse *ColPulse = (*cVecIt);
+		
+		
+		//Determine how many collection pulses are in coincidence with this pulse (inefficient algorithm)
+		vector<RSTPC_Pulse*>::iterator cVecIt2;
+		for(cVecIt2=ColPulses->begin(); cVecIt2!=ColPulses->end(); cVecIt2++ )
+		{
+			if(cVecIt2!=cVecIt)
+			{
+				if( !( (ColPulse->fLedge>(*cVecIt2)->fRedge)||(ColPulse->fRedge<(*cVecIt2)->fLedge) ) )
+				{//This is the overlapping condition
+					ColPulse->fColCoinIDs->insert( (*cVecIt2)->fPulseID );
+				}
+			}
+		}
+		
+		
+		//Fill the vector of the induction pulses in coincidence with this collection pulse (hits finder)
+		vector<RSTPC_Pulse*>::iterator iVecIt;
+		for(iVecIt=IndPulses->begin(); iVecIt!=IndPulses->end(); iVecIt++ )
+		{
+			RSTPC_Pulse *IndPulse = (*iVecIt);
+			
+			if( !( (ColPulse->fLedge>IndPulse->fRedge)||(ColPulse->fRedge<IndPulse->fLedge) ) )
+			{//This is the overlapping condition
+				ColPulse->fIndCoinIDs->insert( IndPulse->fPulseID );
+				IndPulse->fColCoinIDs->insert( ColPulse->fPulseID );
+				
+				//Make a hit here
+				RSTPC_Hit *hit = new RSTPC_Hit(ColPulse, IndPulse);
+				hit->fLedge = (Double_t)ColPulse->fLedge;
+				hit->fRedge = (Double_t)ColPulse->fRedge;
+				hit->SetCentreTime( (hit->fLedge+hit->fRedge)/2 );
+				
+				Int_t nsamps = hit->fRedge-hit->fLedge+1;
+				
+				//Find the meaen (weighted) quantities
+				Double_t meantime=0, meanheight=0, sum2=0;
+				for(Int_t kSamp=hit->fLedge; kSamp<=hit->fLedge; kSamp++)
+				{//Using the square as a measure of the pulse chunk on the specific interval
+					sum2 += pow((gColWfsVect->at(ColPulse->fWireNum)).at(kSamp) ,2);
+					meantime += kSamp* pow((gColWfsVect->at(ColPulse->fWireNum)).at(kSamp) ,2); 
+					meanheight += (gColWfsVect->at(ColPulse->fWireNum)).at(kSamp)/nsamps;
+				}
+				
+				meantime = meantime/sum2;
+				
+				if(meantime==0)
+				{
+					//meantime = ((Double_t)(redge-ledge))/2;
+					hit->fMeanTime = hit->fCentreTime;
+				}
+				else
+				{
+					hit->fMeanTime = meantime;
+				}
+				
+				hit->fMeanHeight = meanheight;
+				
+				
+				outHits.push_back(hit);
+			}
+		}
+		
+		ColPulse->fColCoinNum = ColPulse->fColCoinIDs->size();
+		ColPulse->fIndCoinNum = ColPulse->fIndCoinIDs->size();
+	}
+	
+	
+	//Cycle over the induction pulses only to determine the coincidences with other induction pulses
+	vector<RSTPC_Pulse*>::iterator iVecIt;
+	for(iVecIt=IndPulses->begin(); iVecIt!=IndPulses->end(); iVecIt++ )
+	{
+		(*iVecIt)->fIndCoinIDs->clear();//Should not be necessary
+		
+		vector<RSTPC_Pulse*>::iterator iVecIt2;
+		for(iVecIt2=IndPulses->begin(); iVecIt2!=IndPulses->end(); iVecIt2++ )
+		{
+			if(iVecIt2!=iVecIt)
+			{
+				if( !( ((*iVecIt)->fLedge>(*iVecIt2)->fRedge) || ((*iVecIt)->fRedge<(*iVecIt2)->fLedge) ) )
+				{//This is the overlapping condition
+					(*iVecIt)->fIndCoinIDs->insert((*iVecIt2)->fPulseID);
+				}
+			}
+		}
+		
+		(*iVecIt)->fColCoinNum = (*iVecIt)->fColCoinIDs->size();
+		(*iVecIt)->fIndCoinNum = (*iVecIt)->fIndCoinIDs->size();
+	}
+	
+	
+	Int_t nHits = outHits.size();
+	
+	if(debug) cout << "Debug --> RSTPC_RunProcessor::CombinePulses(...): Total hits found: " << nHits << endl;
+	
+	return outHits;
+}
 
 
+/*
 Int_t RSTPC_RunProcessor::HitsFinder(map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* pulseMap, Bool_t debug)
 {
 	gHits->clear();
@@ -1413,6 +1607,7 @@ Int_t RSTPC_RunProcessor::HitsFinder(map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* 
 	
 	return gHits->size();
 }
+*/
 
 
 /*

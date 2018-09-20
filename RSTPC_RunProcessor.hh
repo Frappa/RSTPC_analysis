@@ -35,6 +35,8 @@ class RSTPC_Pulse;
 class RSTPC_Hit;
 class EventData;
 
+
+
 class RSTPC_RunProcessor
 {
 public:
@@ -71,9 +73,11 @@ public:
 	virtual void T2Process();
 	Bool_t IsProcT2init(){return fProcT2;};
 	
-	static map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* CombinePulses(vector<RSTPC_Pulse*>* ColPulses,  vector<RSTPC_Pulse*>* IndPulses, Bool_t debug=false);
+	//This is obsolete and if the newer version works better it should be removed
+	//static map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* CombinePulses(vector<RSTPC_Pulse*>* ColPulses,  vector<RSTPC_Pulse*>* IndPulses, Bool_t debug=false);
 	
-	
+	//Combine the coincidences of pulses and returns a vector of hits.
+	vector<RSTPC_Hit*> CombinePulses(vector<RSTPC_Pulse*>* ColPulses,  vector<RSTPC_Pulse*>* IndPulses, Bool_t debug=false);
 	
 	Bool_t IsRunOpen() const {return fRunOpenFlag;};
 	
@@ -118,7 +122,8 @@ protected:
 	//This methods should only be used by the T2Process function and not by the user.
 	void FindPulses(TH2D* h, WireType type, Bool_t debug=false);
 	
-	Int_t HitsFinder(map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* pulseMap, Bool_t debug=false);
+	//This method is obsolete and should be removed
+	//Int_t HitsFinder(map<RSTPC_Pulse*, vector<RSTPC_Pulse*>* >* pulseMap, Bool_t debug=false);
 	
 	
 	RSTPC_Analyser *fTpcMan;
@@ -194,18 +199,5 @@ public:
 	void Reset(string opt="");
 };
 
-/*
-#ifndef RSTPC_RUNPROCESSOR_CC
-//Initialise the static variables here
-#define RSTPC_RUNPROC_STATICS
-Double_t RSTPC_RunProcessor::fgSigmaThr = 3.0;
-
-Double_t RSTPC_RunProcessor::fgPeakingTime = 0.0;
-Double_t RSTPC_RunProcessor::fgSamplingFreq = 1./50e-3;
-Double_t RSTPC_RunProcessor::fgPitchSize = 1.875;
-Double_t RSTPC_RunProcessor::fgDriftLenght = 150;
-Double_t RSTPC_RunProcessor::fgDriftVel = 0.0;
-#endif
-*/
 
 #endif /* RSTPC_RUNPROCESSOR_HH */

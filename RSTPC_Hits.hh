@@ -11,7 +11,10 @@
 #include "TBits.h"
 #include "TMath.h"
 
+#include <vector>
+#include <set>
 
+using namespace std;
 
 class RSTPC_Pulse: public TObject
 {
@@ -31,6 +34,11 @@ public:
 	Double_t fFWHM, fFWTM;
 	Double_t fMeanTime, fSigma;
 	
+	Int_t fColCoinNum, fIndCoinNum; //Number of coincident collection and induction pulses
+	
+	//Vectors of the IDs of the collection and induction pulse in coincidence with this one (do not save in the tree)
+	set<UInt_t> *fColCoinIDs; //! do not stream
+	set<UInt_t> *fIndCoinIDs; //! do not stream
 	
 	//The first two constructors do not increase the pulse counter
 	RSTPC_Pulse(); //This needed by the rootsystem in order to save this class in a tree
@@ -54,7 +62,7 @@ public:
 	static UInt_t GetNpulses();
 	static void ResetCounter();
 	
-	ClassDef(RSTPC_Pulse,2)
+	ClassDef(RSTPC_Pulse,3)
 };
 
 
