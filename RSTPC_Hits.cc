@@ -270,6 +270,8 @@ Double_t RSTPC_Pulse::SetSigma(vector<Double_t>* flWf)
 	//Sigma of a flat distribution
 	if(fSigma<=0) fSigma = pow((Double_t)(fRedge-fLedge), 2)/12.;
 	
+	fSigma = sqrt(fSigma);
+	
 	return fSigma;
 }
 
@@ -293,6 +295,7 @@ void RSTPC_Hit::ResetCounter()
 	fgNhits=0;
 }
 
+
 RSTPC_Hit::RSTPC_Hit(const RSTPC_Pulse* ColPulse, const RSTPC_Pulse* IndPulse)
 {
 	if( !(ColPulse && IndPulse) ) return;
@@ -308,6 +311,8 @@ RSTPC_Hit::RSTPC_Hit(const RSTPC_Pulse* ColPulse, const RSTPC_Pulse* IndPulse)
 	
 	fX = fIndWireNum*RSTPC_RunProcessor::GetPitchSize();
 	fY = fColWireNum*RSTPC_RunProcessor::GetPitchSize();
+	
+	fAmp = ColPulse->fMax;
 }
 
 
@@ -352,6 +357,8 @@ RSTPC_Hit& RSTPC_Hit::operator=(const RSTPC_Hit &orig)
 	fLedge = orig.fLedge;
 	fRedge = orig.fRedge;
 	
+	fAmp = orig.fAmp;
+	
 	return *this;
 }
 
@@ -371,7 +378,7 @@ const Bool_t RSTPC_Hit::operator==(const RSTPC_Hit& right) const
 void RSTPC_Hit::SetCentreTime(Double_t centre)
 {
 	fCentreTime = centre; //This is units of samples
-	fZ = centre * RSTPC_RunProcessor::GetDriftVel() / RSTPC_RunProcessor::GetSamplingFreq();
+	//fZ = centre * RSTPC_RunProcessor::GetDriftVel() / RSTPC_RunProcessor::GetSamplingFreq();
 }
 
 

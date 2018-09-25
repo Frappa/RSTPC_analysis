@@ -23,9 +23,12 @@ Int_t RSTPC_RunProcessor::fgNevPrint = 100;
 Double_t RSTPC_RunProcessor::fgSigmaThr = 3.0;
 Double_t RSTPC_RunProcessor::fgPeakingTime = 0.0;
 Double_t RSTPC_RunProcessor::fgSamplingFreq = 1./50e-3;
-Double_t RSTPC_RunProcessor::fgPitchSize = 1.875;
+Double_t RSTPC_RunProcessor::fgPitchSize = 52.5/31; //Measured
 Double_t RSTPC_RunProcessor::fgDriftLenght = 150;
 Double_t RSTPC_RunProcessor::fgDriftVel = 0.0;
+
+Double_t RSTPC_RunProcessor::fgPulsesCoinTimes = 5.; //In usec
+Int_t RSTPC_RunProcessor::fgCrossCorrMaxAbsDelaySamps = 100; //In samples
 //#endif
 
 
@@ -88,6 +91,26 @@ Double_t RSTPC_RunProcessor::GetDriftVel()
 {
 	return fgDriftVel;
 }
+
+void RSTPC_RunProcessor::SetPulsesCoinTimes(Double_t _val)
+{
+	fgPulsesCoinTimes = _val;
+}
+Double_t RSTPC_RunProcessor::GetPulsesCoinTimes()
+{
+	return fgPulsesCoinTimes;
+}
+
+void RSTPC_RunProcessor::SetCrossCorrMaxAbsDelaySamps(Int_t _val)
+{
+	fgCrossCorrMaxAbsDelaySamps = _val;
+}
+Int_t RSTPC_RunProcessor::GetCrossCorrMaxAbsDelaySamps()
+{
+	return fgCrossCorrMaxAbsDelaySamps;
+}
+
+
 
 
 RSTPC_RunProcessor::RSTPC_RunProcessor() : gColPulses(0), gIndPulses(0)
@@ -1372,28 +1395,33 @@ vector<RSTPC_Hit*> RSTPC_RunProcessor::CombinePulses(vector<RSTPC_Pulse*>* ColPu
 	if( !(ColPulses && IndPulses) ) return outHits;
 	if( !((ColPulses->size()>0) && (IndPulses->size()>0)) ) return outHits; //They must be empty!!!
 	
-	{
-		vector<RSTPC_Pulse*>::iterator cVecIt;
-		for(cVecIt=ColPulses->begin(); cVecIt!=ColPulses->end(); cVecIt++ )
-		{
-			(*cVecIt)->fColCoinIDs->clear(); //This should not be necessary
-			(*cVecIt)->fColCoinNum = 0;
-			(*cVecIt)->fIndCoinIDs->clear(); //This should not be necessary
-			(*cVecIt)->fIndCoinNum = 0;
-		}
 	
-		vector<RSTPC_Pulse*>::iterator iVecIt;
-		for(iVecIt=ColPulses->begin(); iVecIt!=ColPulses->end(); iVecIt++ )
-		{
-			(*iVecIt)->fColCoinIDs->clear(); //This should not be necessary
-			(*iVecIt)->fColCoinNum = 0;
-			(*iVecIt)->fIndCoinIDs->clear(); //This should not be necessary
-			(*iVecIt)->fIndCoinNum = 0;
-		}
+	//This two guys are needed to make a fast search later on
+	map<UInt_t, RSTPC_Pulse*> ColPulsesMap;
+	map<UInt_t, RSTPC_Pulse*> IndPulsesMap;
+	
+	vector<RSTPC_Pulse*>::iterator cVecIt, iVecIt;
+	
+	
+	for(cVecIt=ColPulses->begin(); cVecIt!=ColPulses->end(); cVecIt++ )
+	{
+		(*cVecIt)->fColCoinIDs->clear(); //This should not be necessary
+		(*cVecIt)->fColCoinNum = 0;
+		(*cVecIt)->fIndCoinIDs->clear(); //This should not be necessary
+		(*cVecIt)->fIndCoinNum = 0;
+		ColPulsesMap[ (*cVecIt)->fPulseID ] = (*cVecIt);
+	}
+	
+	for(iVecIt=IndPulses->begin(); iVecIt!=IndPulses->end(); iVecIt++ )
+	{
+		(*iVecIt)->fColCoinIDs->clear(); //This should not be necessary
+		(*iVecIt)->fColCoinNum = 0;
+		(*iVecIt)->fIndCoinIDs->clear(); //This should not be necessary
+		(*iVecIt)->fIndCoinNum = 0;
+		IndPulsesMap[ (*iVecIt)->fPulseID ] = (*iVecIt);
 	}
 	
 	
-	vector<RSTPC_Pulse*>::iterator cVecIt;
 	for(cVecIt=ColPulses->begin(); cVecIt!=ColPulses->end(); cVecIt++ )
 	{//Cycling over the collection pulses
 		
@@ -1412,10 +1440,10 @@ vector<RSTPC_Hit*> RSTPC_RunProcessor::CombinePulses(vector<RSTPC_Pulse*>* ColPu
 				}
 			}
 		}
+		ColPulse->fColCoinNum = ColPulse->fColCoinIDs->size();
 		
 		
 		//Fill the vector of the induction pulses in coincidence with this collection pulse (hits finder)
-		vector<RSTPC_Pulse*>::iterator iVecIt;
 		for(iVecIt=IndPulses->begin(); iVecIt!=IndPulses->end(); iVecIt++ )
 		{
 			RSTPC_Pulse *IndPulse = (*iVecIt);
@@ -1424,53 +1452,17 @@ vector<RSTPC_Hit*> RSTPC_RunProcessor::CombinePulses(vector<RSTPC_Pulse*>* ColPu
 			{//This is the overlapping condition
 				ColPulse->fIndCoinIDs->insert( IndPulse->fPulseID );
 				IndPulse->fColCoinIDs->insert( ColPulse->fPulseID );
-				
-				//Make a hit here
-				RSTPC_Hit *hit = new RSTPC_Hit(ColPulse, IndPulse);
-				hit->fLedge = (Double_t)ColPulse->fLedge;
-				hit->fRedge = (Double_t)ColPulse->fRedge;
-				hit->SetCentreTime( (hit->fLedge+hit->fRedge)/2 );
-				
-				Int_t nsamps = hit->fRedge-hit->fLedge+1;
-				
-				//Find the meaen (weighted) quantities
-				Double_t meantime=0, meanheight=0, sum2=0;
-				for(Int_t kSamp=hit->fLedge; kSamp<=hit->fLedge; kSamp++)
-				{//Using the square as a measure of the pulse chunk on the specific interval
-					sum2 += pow((gColWfsVect->at(ColPulse->fWireNum)).at(kSamp) ,2);
-					meantime += kSamp* pow((gColWfsVect->at(ColPulse->fWireNum)).at(kSamp) ,2); 
-					meanheight += (gColWfsVect->at(ColPulse->fWireNum)).at(kSamp)/nsamps;
-				}
-				
-				meantime = meantime/sum2;
-				
-				if(meantime==0)
-				{
-					//meantime = ((Double_t)(redge-ledge))/2;
-					hit->fMeanTime = hit->fCentreTime;
-				}
-				else
-				{
-					hit->fMeanTime = meantime;
-				}
-				
-				hit->fMeanHeight = meanheight;
-				
-				
-				outHits.push_back(hit);
 			}
-		}
-		
-		ColPulse->fColCoinNum = ColPulse->fColCoinIDs->size();
+		}//End of cycling over all the induction pulses (to find the hits)
 		ColPulse->fIndCoinNum = ColPulse->fIndCoinIDs->size();
-	}
+	}//End of cycle over the collection pulses
 	
 	
 	//Cycle over the induction pulses only to determine the coincidences with other induction pulses
-	vector<RSTPC_Pulse*>::iterator iVecIt;
 	for(iVecIt=IndPulses->begin(); iVecIt!=IndPulses->end(); iVecIt++ )
 	{
-		(*iVecIt)->fIndCoinIDs->clear();//Should not be necessary
+		RSTPC_Pulse *IndPulse = (*iVecIt);
+		IndPulse->fIndCoinIDs->clear();//Should not be necessary
 		
 		vector<RSTPC_Pulse*>::iterator iVecIt2;
 		for(iVecIt2=IndPulses->begin(); iVecIt2!=IndPulses->end(); iVecIt2++ )
@@ -1484,14 +1476,112 @@ vector<RSTPC_Hit*> RSTPC_RunProcessor::CombinePulses(vector<RSTPC_Pulse*>* ColPu
 			}
 		}
 		
-		(*iVecIt)->fColCoinNum = (*iVecIt)->fColCoinIDs->size();
-		(*iVecIt)->fIndCoinNum = (*iVecIt)->fIndCoinIDs->size();
+		IndPulse->fColCoinNum = IndPulse->fColCoinIDs->size();
+		IndPulse->fIndCoinNum = IndPulse->fIndCoinIDs->size();
 	}
 	
 	
-	Int_t nHits = outHits.size();
 	
-	if(debug) cout << "Debug --> RSTPC_RunProcessor::CombinePulses(...): Total hits found: " << nHits << endl;
+	///////////////////////////////////////////////////////////////////
+	// Finished with finding all the coincidences, now find the hits //
+	// One hit per each col pulse and viceversa!                     //
+	///////////////////////////////////////////////////////////////////
+	
+	
+	Double_t coinTimeWin = RSTPC_RunProcessor::GetPulsesCoinTimes()*RSTPC_RunProcessor::GetSamplingFreq();
+	
+	//Cycle over the collection pulses
+	for(cVecIt=ColPulses->begin(); cVecIt!=ColPulses->end(); cVecIt++ )
+	{
+		RSTPC_Pulse *ColPulse = (*cVecIt);
+		
+		if(ColPulse->fIndCoinIDs->size()==0) continue;
+		
+		if(ColPulse->fIndCoinIDs->size()==1)
+		{//I consider the coincidence an hit only if the mean time of the ind pulse is close enough to the maximum time of the col pulse
+			RSTPC_Pulse *IndPulse = IndPulsesMap[ (*ColPulse->fIndCoinIDs->begin()) ];
+			if( abs( ((Double_t)ColPulse->fMaxPos)-IndPulse->fMeanTime )<=coinTimeWin )
+			{
+				//Make a hit here
+				RSTPC_Hit *hit = new RSTPC_Hit(ColPulse, IndPulse);
+				
+				//Copy the times amplitude and all pulse shape info from the collection pulse
+				hit->fLedge = (Double_t)ColPulse->fLedge;
+				hit->fRedge = (Double_t)ColPulse->fRedge;
+				hit->SetCentreTime( 1.*(hit->fRedge+hit->fLedge)/2 );
+				
+				hit->fZ = -RSTPC_RunProcessor::GetDriftVel()*ColPulse->fMaxPos/RSTPC_RunProcessor::GetSamplingFreq();
+				
+				outHits.push_back(hit);
+			}
+		}
+		else
+		{//There several candidate induction pulses and therefore I need to select the one with best overlapping
+			map<RSTPC_Pulse*, CrossCorrRes> CrossCorrMap; //Here there are the candidate induction pulses that can form an hit together with the collection pulse
+			set<UInt_t>::iterator setIt;
+			for(setIt=ColPulse->fIndCoinIDs->begin(); setIt!=ColPulse->fIndCoinIDs->end(); setIt++)
+			{
+				RSTPC_Pulse *IndPulse = IndPulsesMap[(*setIt)];
+				
+				if( abs( ((Double_t)ColPulse->fMaxPos)-IndPulse->fMeanTime )>coinTimeWin )
+				{//It is too off with respect to the collection pulse maximum
+					continue;
+				}
+				CrossCorrRes cc_par = RSTPC_RunProcessor::CalculatePulsesCrossCorrelation( ColPulse, fT1wr->ColHist, IndPulse, fT1wr->IndHist );
+				if(!cc_par.bad) CrossCorrMap[IndPulse] = cc_par;
+			}
+			
+			
+			if(CrossCorrMap.size()>0)
+			{
+				//Iterate over the map to estabilish which induction pulse is the better for this
+				map<RSTPC_Pulse*, CrossCorrRes>::iterator mapIt;
+				RSTPC_Pulse* selIndPulse = NULL;
+				for(mapIt=CrossCorrMap.begin(); mapIt!=CrossCorrMap.end(); mapIt++)
+				{
+					if(mapIt==CrossCorrMap.begin())
+					{
+						selIndPulse=mapIt->first;
+					}
+					else
+					{
+						CrossCorrRes cc_par = mapIt->second;
+						/*
+						if( abs(cc_par.taumax)<abs(CrossCorrMap[selIndPulse].taumax) )
+						{
+							selIndPulse=mapIt->first;
+						}
+						else
+						{//The two induction pulses have the same tau of the cc maximum, cmpare the amplitudes
+							if(cc_par.max>CrossCorrMap[selIndPulse].max) selIndPulse=mapIt->first;
+						}
+						*/
+						if( (cc_par.max)>(CrossCorrMap[selIndPulse].max) )
+						{
+							selIndPulse=mapIt->first;
+						}
+					}
+				}
+				
+				//With the selected pulse make an hit object
+				RSTPC_Hit *hit = new RSTPC_Hit(ColPulse, selIndPulse);
+				
+				//Copy the times amplitude and all pulse shape info from the collection pulse
+				hit->fLedge = (Double_t)ColPulse->fLedge;
+				hit->fRedge = (Double_t)ColPulse->fRedge;
+				hit->SetCentreTime( 1.*(hit->fRedge+hit->fLedge)/2 );
+				
+				hit->fZ = -RSTPC_RunProcessor::GetDriftVel()*ColPulse->fMaxPos/RSTPC_RunProcessor::GetSamplingFreq();
+				
+				outHits.push_back(hit);
+			}
+		}
+	}//End cyclyng over the collection pulses for hit determination
+	
+	
+	
+	//Cycle over the collection pulses
+	if(debug) cout << "Debug --> RSTPC_RunProcessor::CombinePulses(...): Total hits found: " << outHits.size() << endl;
 	
 	return outHits;
 }
@@ -1627,6 +1717,77 @@ void RSTPC_RunProcessor::CloseRun()
 	fFebMan = NULL;
 }
 */
+
+
+
+CrossCorrRes RSTPC_RunProcessor::CalculatePulsesCrossCorrelation( RSTPC_Pulse* ColPulse, TH2D* ColHist, RSTPC_Pulse* IndPulse, TH2D* IndHist )
+{
+	CrossCorrRes result;
+	result.bad = false;
+	
+	if(!(ColPulse && ColHist && IndPulse && IndHist))
+	{
+		result.bad=true;
+		return result;
+	}
+	
+	vector<Double_t> ColPulseWf(ColHist->GetNbinsX(), 0.);
+	vector<Double_t> IndPulseWf(IndHist->GetNbinsX(), 0.);
+	
+	Int_t nSamps = ColPulseWf.size();
+	if(IndPulseWf.size()!=ColPulseWf.size())
+	{
+		result.bad=true;
+		return result;
+	}
+	
+	for(Int_t iSamp=ColPulse->fLedge; iSamp<=ColPulse->fRedge; iSamp++)
+	{
+		ColPulseWf.at(iSamp) = ColHist->GetBinContent(iSamp+1, ColPulse->fWireNum+1);
+	}
+	
+	for(Int_t iSamp=IndPulse->fLedge; iSamp<=IndPulse->fRedge; iSamp++)
+	{
+		IndPulseWf.at(iSamp) = IndHist->GetBinContent(iSamp+1, IndPulse->fWireNum+1);
+	}
+	
+	
+	//Minimum and maximum CC times (HARD CODED HERE)
+	Double_t DeltaT = 1./RSTPC_RunProcessor::GetSamplingFreq();
+	Int_t TauMaxShift = RSTPC_RunProcessor::GetCrossCorrMaxAbsDelaySamps(); //In samples
+	Int_t nTimes = 2*TauMaxShift + 1;
+	
+	for(Int_t iTime=0; iTime<nTimes; iTime++)
+	{
+		Int_t SampShift = iTime-TauMaxShift;
+		Double_t tau = SampShift*DeltaT;
+		Double_t croscorr = 0;
+		
+		for(Int_t iSamp=0; iSamp<ColPulseWf.size(); iSamp++)
+		{
+			if( (iSamp+SampShift>=0) && (iSamp+SampShift<nSamps) )
+			{
+				croscorr += ColPulseWf.at(iSamp)*IndPulseWf.at(iSamp+SampShift);
+			}
+		}
+		
+		if(iTime==0)
+		{
+			result.taumax = tau;
+			result.max = croscorr;
+		}
+		else
+		{
+			if( result.max < croscorr )
+			{
+				result.taumax = tau;
+				result.max = croscorr;
+			}
+		}
+	}
+	
+	return result;
+}
 
 
 EventData::EventData()

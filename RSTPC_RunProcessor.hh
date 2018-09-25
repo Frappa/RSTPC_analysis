@@ -36,6 +36,14 @@ class RSTPC_Hit;
 class EventData;
 
 
+class CrossCorrRes
+{
+public:
+	Double_t max;
+	Double_t taumax;
+	Bool_t bad;
+};
+
 
 class RSTPC_RunProcessor
 {
@@ -116,6 +124,17 @@ public:
 	static void SetDriftVel(Double_t _val);
 	static Double_t GetDriftVel();
 	
+	//For handling the time window used to determine coincidences between col and ind pulses
+	static void SetPulsesCoinTimes(Double_t _val);//In usec units!
+	static Double_t GetPulsesCoinTimes();
+	
+	//For handling the left and right time samples used to calculate the cross-corr between col and ind pulses
+	static void SetCrossCorrMaxAbsDelaySamps(Int_t _val);
+	static Int_t GetCrossCorrMaxAbsDelaySamps();
+	
+	
+	static CrossCorrRes CalculatePulsesCrossCorrelation( RSTPC_Pulse* ColPulse, TH2D* ColHist, RSTPC_Pulse* IndPulse, TH2D* IndHist );
+	
 	
 protected:
 	
@@ -165,11 +184,14 @@ private:
 	
 	static Double_t fgPeakingTime; //In micro-secs
 	
-	static Double_t fgSamplingFreq; //In 1./micro-secs
+	static Double_t fgSamplingFreq; //In samples/micro-secs
 	
 	static Double_t fgPitchSize; //In mm
 	static Double_t fgDriftLenght; //In mm
 	static Double_t fgDriftVel; //In mm/usec
+	
+	static Double_t fgPulsesCoinTimes; //Used as time window for ind-col pulses coincidences determination
+	static Int_t fgCrossCorrMaxAbsDelaySamps;
 };
 
 

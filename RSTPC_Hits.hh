@@ -16,6 +16,7 @@
 
 using namespace std;
 
+
 class RSTPC_Pulse: public TObject
 {
 private:
@@ -81,11 +82,11 @@ public:
 	
 	//The following variables are directly set from outside the class
 	Double_t fZ;
-	Double_t fMeanHeight; //This is related to the collection charge in the specific time slice (will be used as a weight)
+	Double_t fMeanHeight; //This is related to the collection charge in the specific time slice (can be used as a weight)
 	Double_t fCentreTime;
 	Double_t fMeanTime; //This is weighted with the charge but should be very close to the "centre time"
 	Double_t fLedge, fRedge; //Boundaries of the time slice (in samples units)
-	
+	Double_t fAmp; //Amplitude: can be used as weight. Coll pulse Max
 	
 	//This constructor doesn't increase the counter 
 	RSTPC_Hit();
@@ -109,7 +110,7 @@ public:
 	
 	void SetCentreTime(Double_t centre); //In samples units. It should correspond to the center of a time slice.
 	
-	ClassDef(RSTPC_Hit,2)
+	ClassDef(RSTPC_Hit,3)
 
 };
 
