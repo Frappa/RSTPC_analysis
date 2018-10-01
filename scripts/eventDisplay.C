@@ -28,19 +28,11 @@ void eventDisplay() {
     
     // Get the min and max weights for the normalization
     double x,y,z,weight;
-    double min_value = 9999.9;
-    double max_value = -9999.9;
     inputfile.open("3Dhits.txt");
     if(inputfile.is_open()) {
         while( std::getline(inputfile,line) ) {
             istringstream strStream(line);
             strStream >> x >> y >> z >> weight;
-            if ( weight > max_value ) {
-                max_value = weight;
-            }
-            if( weight < min_value ) {
-                min_value = weight;
-            }
         }
         inputfile.close();
     }
@@ -54,7 +46,8 @@ void eventDisplay() {
             istringstream strStream(line);
             strStream >> x >> y >> z >> weight;
             std::cout << " " << x << " " << y << " " << z << " " << weight << std::endl;
-            hist->Fill(x,y,z,(weight-min_value+1)); // Shift the smallest value to value 1; z values given in mm
+			if(weight<0.) std::cout << " WARNING: NEGATIVE WEIGHT !! " << std::endl;
+            hist->Fill(x,y,z,weight); // Shift the smallest value to value 1; z values given in mm
         }
         inputfile.close();
     }

@@ -22,6 +22,13 @@ std::vector<double> principal_components(std::vector<float> hit_x, std::vector<f
         return error;
     }
 
+
+	// Check that no negative weights are present
+	for(int entry=0; entry<weights.size(); entry++) {
+		if(weights[entry]<0.) std::cout << " WARNING: NEGATIVE WEIGHTS IN PCA MODULE !! " << std::endl;
+	}
+
+
     // Create vector with the principal component
     std::vector<double> principal_components_vector(9,0.);
 
@@ -83,8 +90,8 @@ std::vector<double> principal_components(std::vector<float> hit_x, std::vector<f
 
     covMatrix *= 1. / sum_of_weights;
 
-    std::cout << " The covariance matrix has the form: " << std::endl;
-    std::cout << covMatrix << std::endl;
+    //std::cout << " The covariance matrix has the form: " << std::endl;
+    //std::cout << covMatrix << std::endl;
 
 
     // Find eigenvalues (at maximum three) and save them in eigenValColVec

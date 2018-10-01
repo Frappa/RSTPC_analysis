@@ -8,6 +8,30 @@
 
 
 // **************************************************************
+std::vector<double> calculate_distance(float hit_x, float hit_y, float hit_z, std::vector<double> principal_component, std::vector<double> barycentre) {
+// **************************************************************
+
+	// Initialize the vector (length = number of hits, which is 1) of vectors (with length = 3 for the residuals in each spatial direction)
+	std::vector<double> residuals(3,-999.);
+
+
+	// For each hit, calculate the shortest vector from the hit to the principal component's line
+	double lambda = ( ( (hit_x-barycentre[0])*principal_component[0] +
+						(hit_y-barycentre[1])*principal_component[1] +
+						(hit_z-barycentre[2])*principal_component[2] ) / (sqrt( principal_component[0]*principal_component[0] + principal_component[1]*principal_component[1] + principal_component[2]*principal_component[2] )) );
+
+	residuals[0] = barycentre[0] + lambda * principal_component[0] - hit_x;
+	residuals[1] = barycentre[1] + lambda * principal_component[1] - hit_y;
+	residuals[2] = barycentre[2] + lambda * principal_component[2] - hit_z;
+
+	//std::cout << " Residuals: " << residuals[0] << " \t" << residuals[1] << " \t" << residuals[2] << std::endl;
+
+	return residuals;
+}
+
+
+
+// **************************************************************
 std::vector<std::vector<double>> calculate_residuals(std::vector<float> hits_x, std::vector<float> hits_y, std::vector<float> hits_z, std::vector<double> principal_component, std::vector<double> barycentre) {
 // **************************************************************
 
