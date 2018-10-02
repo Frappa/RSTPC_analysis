@@ -52,6 +52,17 @@ void StraightLines() {
                                      // /home/rberner   /data/ResistiveShell/merged/test/RSTPC_Run000002032_Merged.root");
 
 
+	// Produce some plots for initial data inspection
+	// (-> which ADC cut values should be chosen, etc.)
+	// ===================================================================
+    
+	//PlotColPulses(); // Amplitudes of all ColPulses from the entire run plotted vs. width (= LeftEdge - RightEdge)
+	//Plot_ColPulses_Ampl_vs_Width(); // Amplitudes of each single Col Wire plotted vs. width
+	//Plot_ColPulses_Ampl_vs_FWHM(); // Amplitudes of each single Col Wire plotted vs. FWHM
+    Plot_ColPulses_Ampl_vs_FWTM(); // Amplitudes of each single Col Wire plotted vs. FWM
+
+
+
     // Access the T1 data
     // ===================================================================
     // Get T1 tree and link variables
@@ -138,7 +149,7 @@ void StraightLines() {
 
 
     // Loop over all events in T2
-    for(int event=0; event<200; event++) { //T2->GetEntries(); event++) { // 2: reference track // 4: muon + delta // 7: muon only
+    for(int event=0; event<1; event++) { //T2->GetEntries(); event++) { // 2: reference track // 4: muon + delta // 7: muon only
         T2->GetEntry(event);
         //T2->Show(event);
         std::cout << "======> EVENT:" << event << std::endl;
@@ -176,10 +187,10 @@ void StraightLines() {
                 }
             }
             else {
-                std::cout << " Wire number: " << t2event_ColPulse->fWireNum << " \tAmplitude: " << t2event_ColPulse->fMax << " \tWidth: " << t2event_ColPulse->fRedge-t2event_ColPulse->fLedge << std::endl;
+                //std::cout << " Wire number: " << t2event_ColPulse->fWireNum << " \tAmplitude: " << t2event_ColPulse->fMax << " \tWidth: " << t2event_ColPulse->fRedge-t2event_ColPulse->fLedge << std::endl;
                 if( (t2event_ColPulse->fMax < 40) ) { //|| (t2event_ColPulse->fMax < 0.8*(t2event_ColPulse->fRedge-t2event_ColPulse->fLedge)) ) {
                     badColPulseIDs.insert( t2event_ColPulse->fPulseID );
-                    std::cout << " Is classified as bad pulse. " << std::endl;
+                    //std::cout << " Is classified as bad pulse. " << std::endl;
                 }
             }
             /*else {
@@ -468,7 +479,7 @@ void StraightLines() {
     } // End loop over all events in T2
 
 
-    PlotColPulses_for_singleWires();
+
 
 
 
