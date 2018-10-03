@@ -50,16 +50,20 @@ void StraightLines() {
     // ===================================================================
     TFile * tfile_run_2032 = new TFile("/home/francescop/data/ResistiveShell/merged/test/RSTPC_Run000002032_Merged.root");
                                      // /home/rberner   /data/ResistiveShell/merged/test/RSTPC_Run000002032_Merged.root");
+                                     
+    int run_number = 2032;
 
 
 	// Produce some plots for initial data inspection
 	// (-> which ADC cut values should be chosen, etc.)
+	// Functions defined in TestPulses.C
 	// ===================================================================
-    
-	//PlotColPulses(); // Amplitudes of all ColPulses from the entire run plotted vs. width (= LeftEdge - RightEdge)
-	//Plot_ColPulses_Ampl_vs_Width(); // Amplitudes of each single Col Wire plotted vs. width
-	//Plot_ColPulses_Ampl_vs_FWHM(); // Amplitudes of each single Col Wire plotted vs. FWHM
-    Plot_ColPulses_Ampl_vs_FWTM(); // Amplitudes of each single Col Wire plotted vs. FWM
+    //PlotColPulses(); // Amplitudes of all ColPulses from the entire run plotted vs. width (= LeftEdge - RightEdge)
+    //Plot_ColPulses_Ampl_vs_Width(); // Amplitudes of each single Col Wire plotted vs. width
+    //Plot_ColPulses_Ampl_vs_FWHM(); // Amplitudes of each single Col Wire plotted vs. FWHM
+    //Plot_ColPulses_Ampl_vs_FWTM(); // Amplitudes of each single Col Wire plotted vs. FWTM
+    //Plot_ColPulses_Ampl_vs_sigma(); // Amplitudes of each single Col Wire plotted vs. sigma
+    //Plot_IndPulses_Ampl_vs_sigma(); // Amplitudes of each single Ind Wire plotted vs. sigma
 
 
 
@@ -149,7 +153,8 @@ void StraightLines() {
 
 
     // Loop over all events in T2
-    for(int event=0; event<1; event++) { //T2->GetEntries(); event++) { // 2: reference track // 4: muon + delta // 7: muon only
+    // -------------------------------------------------------------------
+    for(int event=0; event<T2->GetEntries(); event++) { //T2->GetEntries(); event++) { // 2: reference track // 4: muon + delta // 7: muon only // 931: long muon track
         T2->GetEntry(event);
         //T2->Show(event);
         std::cout << "======> EVENT:" << event << std::endl;
@@ -165,45 +170,43 @@ void StraightLines() {
 
 
         // Loop over all ColPulses and put those with a small ADC amplitude in a set 'badColPulseIDs' (containing bad ColPulseIDs)
-        Double_t ColPulse_ADC_threshold = 300.;
+        Double_t ColPulse_ADC_threshold = 100.;
         std::set<ULong_t> badColPulseIDs;
-        Int_t width_ColPulse = 0;
 
         std::set<ULong_t> ColPulsesWithLowerThreshold;
-        ColPulsesWithLowerThreshold.insert( (ULong_t)0 );
-        ColPulsesWithLowerThreshold.insert( (ULong_t)27 );
-        ColPulsesWithLowerThreshold.insert( (ULong_t)29 );
-        ColPulsesWithLowerThreshold.insert( (ULong_t)30 );
+        //ColPulsesWithLowerThreshold.insert( (ULong_t)0 );
+        //ColPulsesWithLowerThreshold.insert( (ULong_t)27 );
+        //ColPulsesWithLowerThreshold.insert( (ULong_t)29 );
+        //ColPulsesWithLowerThreshold.insert( (ULong_t)30 );
 
         //std::cout << " ColPulses with amplitudes larger than " << ColPulse_ADC_threshold << " ADC:" << std::endl;
         //std::cout << " ----------------------------------------------- " << std::endl;
         for(UInt_t pulse=0; pulse<NColPulses; pulse++) {
             RSTPC_Pulse * t2event_ColPulse = (RSTPC_Pulse *)tclonesarray_T2_ColPulses->At(pulse);
-            width_ColPulse = t2event_ColPulse->fRedge - t2event_ColPulse->fLedge;
 
-            if ( ColPulsesWithLowerThreshold.find(t2event_ColPulse->fWireNum) == ColPulsesWithLowerThreshold.end()) {
+            ////if ( ColPulsesWithLowerThreshold.find(t2event_ColPulse->fWireNum) == ColPulsesWithLowerThreshold.end()) {
                 if( t2event_ColPulse->fMax<ColPulse_ADC_threshold ) {
                     badColPulseIDs.insert( t2event_ColPulse->fPulseID );
                 }
-            }
-            else {
-                //std::cout << " Wire number: " << t2event_ColPulse->fWireNum << " \tAmplitude: " << t2event_ColPulse->fMax << " \tWidth: " << t2event_ColPulse->fRedge-t2event_ColPulse->fLedge << std::endl;
-                if( (t2event_ColPulse->fMax < 40) ) { //|| (t2event_ColPulse->fMax < 0.8*(t2event_ColPulse->fRedge-t2event_ColPulse->fLedge)) ) {
-                    badColPulseIDs.insert( t2event_ColPulse->fPulseID );
-                    //std::cout << " Is classified as bad pulse. " << std::endl;
-                }
-            }
+            ////}
+            ////else {
+            ////    if( (t2event_ColPulse->fMax < 40) ) {
+            ////        badColPulseIDs.insert( t2event_ColPulse->fPulseID );
+            ////    }
+            ////}
+            
             /*else {
                 std::cout << "  fColPulseID: "      << t2event_ColPulse->fPulseID
                           << "  \tfColCoinNum: "    << t2event_ColPulse->fColCoinNum
                           << "  \tfMax: "           << t2event_ColPulse->fMax
-                          << "  \twidth_ColPulse: " << width_ColPulse
+                          << "  \twidth_ColPulse: " << t2event_ColPulse->fRedge - t2event_ColPulse->fLedge;
                           << "  \tfSigma: "         << t2event_ColPulse->fSigma
                           << "  \tfLedge: "         << t2event_ColPulse->fLedge
                           << "  \tfRedge: "         << t2event_ColPulse->fRedge      << std::endl;
             }*/
         }
         //std::cout << std::endl;
+
 
         // After the threshold cut, only a few hits should be remaining.
         // Loop over all remaining (those are the good ones) ColPulses and put those occurring at the same time (within +/- 1 us) in a set 'CoincidentColPulseIDs'
@@ -238,16 +241,14 @@ void StraightLines() {
         }
 
 
-
         // Loop over all IndPulses and put those with a small ADC amplitude in a set 'badIndPulseIDs' (containing bad IndPulseIDs)
-        Double_t IndPulse_ADC_threshold = 100.;
+        Double_t IndPulse_ADC_threshold = 150.;
         std::set<ULong_t> badIndPulseIDs;
-        Int_t width_IndPulse = 0;
+        
         //std::cout << " IndPulses with amplitudes larger than " << IndPulse_ADC_threshold << " ADC:" << std::endl;
         //std::cout << " ----------------------------------------------- " << std::endl;
         for(UInt_t pulse=0; pulse<NIndPulses; pulse++) {
             RSTPC_Pulse	* t2event_IndPulse	= (RSTPC_Pulse *)tclonesarray_T2_IndPulses->At(pulse);
-            width_IndPulse = t2event_IndPulse->fRedge - t2event_IndPulse->fLedge;
             if( t2event_IndPulse->fMax<IndPulse_ADC_threshold ) {
                 badIndPulseIDs.insert( t2event_IndPulse->fPulseID );
             }
@@ -255,7 +256,7 @@ void StraightLines() {
                 std::cout   << "  fIndPulseID: "      << t2event_IndPulse->fPulseID
                             << "  \tfIndCoinNum: "    << t2event_IndPulse->fIndCoinNum
                             << "  \tfMax: "           << t2event_IndPulse->fMax
-                            << "  \twidth_IndPulse: " << width_IndPulse
+                            << "  \twidth_IndPulse: " << t2event_IndPulse->fRedge - t2event_IndPulse->fLedge;
                             << "  \tfSigma: "         << t2event_IndPulse->fSigma
                             << "  \tfLedge: "         << t2event_IndPulse->fLedge
                             << "  \tfRedge: "         << t2event_IndPulse->fRedge      << std::endl;
@@ -315,6 +316,10 @@ void StraightLines() {
         }
 
         std::cout << " Found " << hits_x.size() << " good hits, rejecting those having > 1 ColPulses within 2.5 us (50samples)." << std::endl;
+
+
+        // Only consider events with at least 6 hits // ADJUST THIS VALUE!
+        if( hits_x.size()<=6 || hits_y.size()<=6 || hits_z.size()<=6 ) continue;
 
 
         // Erase the sets
@@ -474,7 +479,11 @@ void StraightLines() {
             std::cout << " Hits and residuals have been written to file 'Hits_and_Residuals.txt' " << std::endl;
             textfile.close();
         }
-
+        
+        
+        // Make 2D histograms to show the hits
+        // ========================================================================================
+        //plot_good_hits_of_event(hits_x,hits_y,hits_z,weights,run_number,event); // Function defined in TestPulses.C
 
     } // End loop over all events in T2
 

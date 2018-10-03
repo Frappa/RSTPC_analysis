@@ -1044,7 +1044,6 @@ void Plot_ColPulses_Ampl_vs_FWHM()
 	}
 
 return;
-
 }
 
 
@@ -1229,5 +1228,464 @@ void Plot_ColPulses_Ampl_vs_FWTM()
 	}
 
 return;
+}
 
+void Plot_ColPulses_Ampl_vs_sigma()
+{
+
+	gROOT->SetBatch(kTRUE);
+
+	if(!t2w) {
+		t2w = new RSTPC_T2wrapper("/home/francescop/data/ResistiveShell/merged/test/RSTPC_Run000002032_Merged.root", true);
+	}
+
+	if( !t2w->IsInit() ) return;
+	if( !t2w->fChain ) return;
+	if( !((t2w->fT1wr) && (t2w->fT1wr->IsInit())) ) return;
+
+	Int_t nEvs = t2w->fChain->GetEntries();
+	
+
+	//Plot the ampitude and the sigma of the noise collection pulses
+	const Int_t mintimenoise = 2500;
+	
+	std::vector<std::vector<Int_t>>    ledgesVec(32,std::vector<Int_t>   (10000,0));
+	std::vector<std::vector<Int_t>>    sigmaVec(32,std::vector<Int_t>     (10000,0));
+	std::vector<std::vector<Int_t>>    maxposVec(32,std::vector<Int_t>   (10000,0));
+	std::vector<std::vector<Double_t>> maxampVec(32,std::vector<Double_t>(10000,0.));
+
+	for(UInt_t wire=0; wire<32; wire++) {
+		double minsigma  =  999.;
+		double maxsigma  = -999.;
+		double minAmpl  =  999.;
+		double maxAmpl  = -999.;
+
+		for(Int_t iEv=0; iEv<nEvs; iEv++) {
+			t2w->GetEntry(iEv);
+		
+			//Iterate over all the pulses but select only those of the collection wires
+			RSTPC_Pulse *ColPulse;
+			TIter ColPulsesIt(t2w->ColPulses);
+            Double_t sigma;
+			while( (ColPulse = (RSTPC_Pulse*)ColPulsesIt.Next()) ) {
+				if(ColPulse->fWireType!=kCol) continue;
+				if(ColPulse->fLedge<mintimenoise) continue;
+
+                sigma = ColPulse->fSigma;
+				if(ColPulse->fWireNum==wire) maxposVec[wire].push_back( ColPulse->fMaxPos );
+				if(ColPulse->fWireNum==wire) sigmaVec[wire].push_back( sigma );
+				if(ColPulse->fWireNum==wire) maxampVec[wire].push_back( ColPulse->fMax );
+
+				if(sigma<minsigma) minsigma = sigma;
+				if(sigma>maxsigma) maxsigma = sigma;
+				if(ColPulse->fMax<minAmpl) minAmpl = ColPulse->fMax;
+				if(ColPulse->fMax>maxAmpl) maxAmpl = ColPulse->fMax;
+			}
+
+		}
+
+
+		Double_t deltaX = maxsigma - minsigma;
+		minsigma -= 0.1*deltaX;
+		maxsigma += 0.1*deltaX;
+		Double_t deltaY = maxAmpl - minAmpl;
+		minAmpl -= 0.1*deltaY;
+		maxAmpl += 0.1*deltaY;
+
+		TH2D * hNoiseColPulses[32];
+	    char * hist_name = new char[200];
+		if(wire<10) sprintf(hist_name,"ColWire_0%d_NoiseRegion",wire);
+		if(wire>=10) sprintf(hist_name,"ColWire_%d_NoiseRegion",wire);
+	    char * hist_title = new char[200];
+		if(wire<10) sprintf(hist_title,"Collection wire 0%d - Only noise region; sigma [samples]; Amplitude [AU]",wire);
+		if(wire>=10) sprintf(hist_title,"Collection wire %d - Only noise region; sigma [samples]; Amplitude [AU]",wire);
+        hNoiseColPulses[wire] = new TH2D(hist_name,hist_title,50,minsigma,maxsigma,50,minAmpl,maxAmpl);
+
+		for(Int_t iPulse=0; iPulse<maxposVec[wire].size(); iPulse++) {
+			hNoiseColPulses[wire]->Fill( sigmaVec[wire][iPulse], maxampVec[wire][iPulse] );
+		}
+
+		char * canvas_name = new char[200];
+		if(wire<10) sprintf(canvas_name,"ColWire_0%d_NoiseRegion",wire);
+		if(wire>=10) sprintf(canvas_name,"ColWire_%d_NoiseRegion",wire);
+		char * save_name = new char[200];
+		if(wire<10) sprintf(save_name,"plots/amplitude_vs_sigma/ColWire_0%d_NoiseRegion.png",wire);
+		if(wire>=10) sprintf(save_name,"plots/amplitude_vs_sigma/ColWire_%d_NoiseRegion.png",wire);
+
+		TCanvas * canvas_wire = new TCanvas(canvas_name,"Noise collection pulses", 800, 600);
+		gPad->SetLogz();
+		gStyle->SetOptStat(0);
+		hNoiseColPulses[wire]->Draw("colz");
+
+		canvas_wire->SaveAs(save_name);
+
+		maxposVec[wire].clear();
+		sigmaVec[wire].clear();
+		maxampVec[wire].clear();
+	}
+
+	for(int wire=0; wire<32; wire++) {
+		maxposVec[wire].clear();
+		sigmaVec[wire].clear();
+		maxampVec[wire].clear();
+	}
+
+
+	//Now plot the same for the signal region
+	const Double_t minSignTime = 200; //Time in samples units
+	const Double_t maxSignTime = 1300; //Time in samples number
+
+	for(UInt_t wire=0; wire<32; wire++) {
+		double minsigma  =  999.;
+		double maxsigma  = -999.;
+		double minAmpl  =  999.;
+		double maxAmpl  = -999.;
+	
+		for(Int_t iEv=0; iEv<nEvs; iEv++) {
+			t2w->GetEntry(iEv);
+
+			//Iterate over all the pulses but select only those of the collection wires
+			RSTPC_Pulse *ColPulse;
+			TIter ColPulsesIt(t2w->ColPulses);
+            Double_t sigma;
+			while( (ColPulse = (RSTPC_Pulse*)ColPulsesIt.Next()) ) {
+				if(ColPulse->fWireType!=kCol) continue;
+				if(ColPulse->fLedge<minSignTime) continue;
+				if(ColPulse->fLedge>maxSignTime) continue;
+
+				sigma = ColPulse->fSigma;
+
+				//if(ColPulse->fWireNum==wire) { std::cout << " sigma: " << sigma << " \tamplitude: " << ColPulse->fMax << std::endl; }
+				if(ColPulse->fWireNum==wire) maxposVec[wire].push_back( ColPulse->fMaxPos );
+				if(ColPulse->fWireNum==wire) sigmaVec[wire].push_back( sigma );
+				if(ColPulse->fWireNum==wire) maxampVec[wire].push_back( ColPulse->fMax );
+
+				if(sigma<minsigma) minsigma = sigma;
+				if(sigma>maxsigma) maxsigma = sigma;
+				if(ColPulse->fMax<minAmpl) minAmpl = ColPulse->fMax;
+				if(ColPulse->fMax>maxAmpl) maxAmpl = ColPulse->fMax;
+			}
+		}
+
+
+        maxAmpl = 2000;
+
+
+		Double_t deltaX = maxsigma - minsigma;
+		minsigma -= 0.1*deltaX;
+		maxsigma += 0.1*deltaX;
+
+		Double_t deltaY = maxAmpl - minAmpl;
+		minAmpl -= 0.1*deltaY;
+		maxAmpl += 0.1*deltaY;
+
+		TH2D * hSignalColPulses[32];
+	    char * hist_name = new char[200];
+		if(wire<10) sprintf(hist_name,"ColWire_0%d_SignalRegion",wire);
+		if(wire>=10) sprintf(hist_name,"ColWire_%d_SignalRegion",wire);
+	    char * hist_title = new char[200];
+		if(wire<10) sprintf(hist_title,"Collection wire 0%d - Only signal region; sigma [samples]; Amplitude [AU]",wire);
+		if(wire>=10) sprintf(hist_title,"Collection wire %d - Only signal region; sigma [samples]; Amplitude [AU]",wire);
+        hSignalColPulses[wire] = new TH2D(hist_name,hist_title,100,minsigma,maxsigma,100,minAmpl,maxAmpl);
+
+		for(Int_t iPulse=0; iPulse<maxposVec[wire].size(); iPulse++) {
+			hSignalColPulses[wire]->Fill( sigmaVec[wire][iPulse], maxampVec[wire][iPulse] );
+		}
+
+		char * canvas_name = new char[200];
+		if(wire<10) sprintf(canvas_name,"ColWire_0%d_SignalRegion",wire);
+		if(wire>=10) sprintf(canvas_name,"ColWire_%d_SignalRegion",wire);
+		char * save_name = new char[200];
+		if(wire<10) sprintf(save_name,"plots/amplitude_vs_sigma/ColWire_0%d_SignalRegion.png",wire);
+		if(wire>=10) sprintf(save_name,"plots/amplitude_vs_sigma/ColWire_%d_SignalRegion.png",wire);
+
+		TCanvas * canvas_wire = new TCanvas(canvas_name,"Signal collection pulses", 800, 600);
+		gPad->SetLogz();
+		gStyle->SetOptStat(0);
+		hSignalColPulses[wire]->Draw("colz");
+		canvas_wire->SaveAs(save_name);
+
+		maxposVec[wire].clear();
+		sigmaVec[wire].clear();
+		maxampVec[wire].clear();
+	}
+
+return;
+}
+
+
+void Plot_IndPulses_Ampl_vs_sigma()
+{
+
+	gROOT->SetBatch(kTRUE);
+
+	if(!t2w) {
+		t2w = new RSTPC_T2wrapper("/home/francescop/data/ResistiveShell/merged/test/RSTPC_Run000002032_Merged.root", true);
+	}
+
+	if( !t2w->IsInit() ) return;
+	if( !t2w->fChain ) return;
+	if( !((t2w->fT1wr) && (t2w->fT1wr->IsInit())) ) return;
+
+	Int_t nEvs = t2w->fChain->GetEntries();
+	
+
+	//Plot the ampitude and the sigma of the noise induction pulses
+	const Int_t mintimenoise = 2500;
+	
+	std::vector<std::vector<Int_t>>    ledgesVec(32,std::vector<Int_t>   (10000,0));
+	std::vector<std::vector<Int_t>>    sigmaVec(32,std::vector<Int_t>     (10000,0));
+	std::vector<std::vector<Int_t>>    maxposVec(32,std::vector<Int_t>   (10000,0));
+	std::vector<std::vector<Double_t>> maxampVec(32,std::vector<Double_t>(10000,0.));
+
+	for(UInt_t wire=0; wire<32; wire++) {
+		double minsigma  =  999.;
+		double maxsigma  = -999.;
+		double minAmpl  =  999.;
+		double maxAmpl  = -999.;
+
+		for(Int_t iEv=0; iEv<nEvs; iEv++) {
+			t2w->GetEntry(iEv);
+		
+			//Iterate over all the pulses but select only those of the induction wires
+			RSTPC_Pulse *IndPulse;
+			TIter IndPulsesIt(t2w->IndPulses);
+            Double_t sigma;
+			while( (IndPulse = (RSTPC_Pulse*)IndPulsesIt.Next()) ) {
+				if(IndPulse->fWireType!=kInd) continue;
+				if(IndPulse->fLedge<mintimenoise) continue;
+
+                sigma = IndPulse->fSigma;
+				if(IndPulse->fWireNum==wire) maxposVec[wire].push_back( IndPulse->fMaxPos );
+				if(IndPulse->fWireNum==wire) sigmaVec[wire].push_back( sigma );
+				if(IndPulse->fWireNum==wire) maxampVec[wire].push_back( IndPulse->fMax );
+
+				if(sigma<minsigma) minsigma = sigma;
+				if(sigma>maxsigma) maxsigma = sigma;
+				if(IndPulse->fMax<minAmpl) minAmpl = IndPulse->fMax;
+				if(IndPulse->fMax>maxAmpl) maxAmpl = IndPulse->fMax;
+			}
+
+		}
+
+
+		Double_t deltaX = maxsigma - minsigma;
+		minsigma -= 0.1*deltaX;
+		maxsigma += 0.1*deltaX;
+		Double_t deltaY = maxAmpl - minAmpl;
+		minAmpl -= 0.1*deltaY;
+		maxAmpl += 0.1*deltaY;
+
+		TH2D * hNoiseIndPulses[32];
+	    char * hist_name = new char[200];
+		if(wire<10) sprintf(hist_name,"IndWire_0%d_NoiseRegion",wire);
+		if(wire>=10) sprintf(hist_name,"IndWire_%d_NoiseRegion",wire);
+	    char * hist_title = new char[200];
+		if(wire<10) sprintf(hist_title,"Induction wire 0%d - Only noise region; sigma [samples]; Amplitude [AU]",wire);
+		if(wire>=10) sprintf(hist_title,"Induction wire %d - Only noise region; sigma [samples]; Amplitude [AU]",wire);
+        hNoiseIndPulses[wire] = new TH2D(hist_name,hist_title,50,minsigma,maxsigma,50,minAmpl,maxAmpl);
+
+		for(Int_t iPulse=0; iPulse<maxposVec[wire].size(); iPulse++) {
+			hNoiseIndPulses[wire]->Fill( sigmaVec[wire][iPulse], maxampVec[wire][iPulse] );
+		}
+
+		char * canvas_name = new char[200];
+		if(wire<10) sprintf(canvas_name,"IndWire_0%d_NoiseRegion",wire);
+		if(wire>=10) sprintf(canvas_name,"IndWire_%d_NoiseRegion",wire);
+		char * save_name = new char[200];
+		if(wire<10) sprintf(save_name,"plots/amplitude_vs_sigma/IndWire_0%d_NoiseRegion.png",wire);
+		if(wire>=10) sprintf(save_name,"plots/amplitude_vs_sigma/IndWire_%d_NoiseRegion.png",wire);
+
+		TCanvas * canvas_wire = new TCanvas(canvas_name,"Noise induction pulses", 800, 600);
+		gPad->SetLogz();
+		gStyle->SetOptStat(0);
+		hNoiseIndPulses[wire]->Draw("colz");
+
+		canvas_wire->SaveAs(save_name);
+
+		maxposVec[wire].clear();
+		sigmaVec[wire].clear();
+		maxampVec[wire].clear();
+	}
+
+	for(int wire=0; wire<32; wire++) {
+		maxposVec[wire].clear();
+		sigmaVec[wire].clear();
+		maxampVec[wire].clear();
+	}
+
+
+	//Now plot the same for the signal region
+	const Double_t minSignTime = 200; //Time in samples units
+	const Double_t maxSignTime = 1300; //Time in samples number
+
+	for(UInt_t wire=0; wire<32; wire++) {
+		double minsigma  =  999.;
+		double maxsigma  = -999.;
+		double minAmpl  =  999.;
+		double maxAmpl  = -999.;
+	
+		for(Int_t iEv=0; iEv<nEvs; iEv++) {
+			t2w->GetEntry(iEv);
+
+			//Iterate over all the pulses but select only those of the induction wires
+			RSTPC_Pulse *IndPulse;
+			TIter IndPulsesIt(t2w->IndPulses);
+            Double_t sigma;
+			while( (IndPulse = (RSTPC_Pulse*)IndPulsesIt.Next()) ) {
+				if(IndPulse->fWireType!=kInd) continue;
+				if(IndPulse->fLedge<minSignTime) continue;
+				if(IndPulse->fLedge>maxSignTime) continue;
+
+				sigma = IndPulse->fSigma;
+
+				//if(IndPulse->fWireNum==wire) { std::cout << " sigma: " << sigma << " \tamplitude: " << IndPulse->fMax << std::endl; }
+				if(IndPulse->fWireNum==wire) maxposVec[wire].push_back( IndPulse->fMaxPos );
+				if(IndPulse->fWireNum==wire) sigmaVec[wire].push_back( sigma );
+				if(IndPulse->fWireNum==wire) maxampVec[wire].push_back( IndPulse->fMax );
+
+				if(sigma<minsigma) minsigma = sigma;
+				if(sigma>maxsigma) maxsigma = sigma;
+				if(IndPulse->fMax<minAmpl) minAmpl = IndPulse->fMax;
+				if(IndPulse->fMax>maxAmpl) maxAmpl = IndPulse->fMax;
+			}
+		}
+
+
+        maxAmpl = 2000;
+
+
+		Double_t deltaX = maxsigma - minsigma;
+		minsigma -= 0.1*deltaX;
+		maxsigma += 0.1*deltaX;
+
+		Double_t deltaY = maxAmpl - minAmpl;
+		minAmpl -= 0.1*deltaY;
+		maxAmpl += 0.1*deltaY;
+
+		TH2D * hSignalIndPulses[32];
+	    char * hist_name = new char[200];
+		if(wire<10) sprintf(hist_name,"IndWire_0%d_SignalRegion",wire);
+		if(wire>=10) sprintf(hist_name,"IndWire_%d_SignalRegion",wire);
+	    char * hist_title = new char[200];
+		if(wire<10) sprintf(hist_title,"Induction wire 0%d - Only signal region; sigma [samples]; Amplitude [AU]",wire);
+		if(wire>=10) sprintf(hist_title,"Induction wire %d - Only signal region; sigma [samples]; Amplitude [AU]",wire);
+        hSignalIndPulses[wire] = new TH2D(hist_name,hist_title,100,minsigma,maxsigma,100,minAmpl,maxAmpl);
+
+		for(Int_t iPulse=0; iPulse<maxposVec[wire].size(); iPulse++) {
+			hSignalIndPulses[wire]->Fill( sigmaVec[wire][iPulse], maxampVec[wire][iPulse] );
+		}
+
+		char * canvas_name = new char[200];
+		if(wire<10) sprintf(canvas_name,"IndWire_0%d_SignalRegion",wire);
+		if(wire>=10) sprintf(canvas_name,"IndWire_%d_SignalRegion",wire);
+		char * save_name = new char[200];
+		if(wire<10) sprintf(save_name,"plots/amplitude_vs_sigma/IndWire_0%d_SignalRegion.png",wire);
+		if(wire>=10) sprintf(save_name,"plots/amplitude_vs_sigma/IndWire_%d_SignalRegion.png",wire);
+
+		TCanvas * canvas_wire = new TCanvas(canvas_name,"Signal induction pulses", 800, 600);
+		gPad->SetLogz();
+		gStyle->SetOptStat(0);
+		hSignalIndPulses[wire]->Draw("colz");
+		canvas_wire->SaveAs(save_name);
+
+		maxposVec[wire].clear();
+		sigmaVec[wire].clear();
+		maxampVec[wire].clear();
+	}
+
+return;
+}
+
+
+void plot_good_hits_of_event(std::vector<float> hit_x, std::vector<float> hit_y, std::vector<float> hit_z, std::vector<float> weights, int run_number, int event_number) {
+
+	gROOT->SetBatch(kTRUE);
+	
+	//gStyle->SetPadLeftMargin(0.12); //0.18
+    //gStyle->SetPadBottomMargin(0.10); //0.16
+    gStyle->SetPadTopMargin(0.06); //0.16 //1.05,"Y"
+    gStyle->SetPadBottomMargin(0.15); //0.16 //1.05,"Y"
+    gStyle->SetPadRightMargin(0.145);
+    gStyle->SetPadLeftMargin(0.075);
+	
+	// Check that the input vectors (hit_x, hit_y, hit_z, weights) have the same size
+	if( hit_x.size() != hit_y.size() ||
+	    hit_x.size() != hit_z.size() ||
+	    hit_x.size() != weights.size() ||
+	    hit_y.size() != hit_z.size() ||
+	    hit_y.size() != weights.size() ||
+	    hit_z.size() != weights.size() ) {
+	    std::cout << " WARNING: VECTORS hit_x, hit_y, hit_z and weights DO NOT HAVE THE SAME SIZE !! " << std::endl;
+	    return;
+	}
+	
+    // Create histograms
+    TH2F * hColWires = new TH2F("hColWires","Col_wires",32,-0.5,32.5,75,0,150);
+    TH2F * hIndWires = new TH2F("hIndWires","Col_wires",32,-0.5,32.5,75,0,150);
+   
+    // Fill histograms
+    for(int hit=0; hit<hit_x.size(); hit++) {
+	    if(weights[hit]<0.) std::cout << " WARNING: NEGATIVE WEIGHT !! " << std::endl;
+        hIndWires->Fill(hit_x[hit],hit_z[hit],weights[hit]);
+        hColWires->Fill(hit_y[hit],hit_z[hit],weights[hit]);
+    }
+    
+    
+    char * canvas_title = new char[60];
+    sprintf(canvas_title,"Run %d event %d",run_number,event_number);
+    char * save_file_name = new char[60];
+    if(event_number<10)               { sprintf(save_file_name,"plots/hitmap/Run%dEvent00%d.png",run_number,event_number); }
+    if(event_number>=10 && event_number<100) { sprintf(save_file_name,"plots/hitmap/Run%devent0%d.png",run_number,event_number); }
+    if(event_number>=100)             { sprintf(save_file_name,"plots/hitmap/Run%devent%d.png",run_number,event_number); }
+    //if(event_number<10)               { sprintf(save_file_name,"plots/hitmap/Run%dEvent00%d_without_ColCoinCut.png",run_number,event_number); }
+    //if(event_number>=10 && event_number<100) { sprintf(save_file_name,"plots/hitmap/Run%devent0%d_without_ColCoinCut.png",run_number,event_number); }
+    //if(event_number>=100)             { sprintf(save_file_name,"plots/hitmap/Run%devent%d_without_ColCoinCut.png",run_number,event_number); }
+    
+    TCanvas * canvas = new TCanvas("canvas",canvas_title,1000,800);
+    canvas->Divide(1,2,0.01,0.01);
+    hColWires->SetTitle(canvas_title);
+    
+    canvas->cd(1);
+    hColWires->SetStats(0);
+    hColWires->GetXaxis()->SetTitle("ColWireNum [-]");
+    hColWires->GetYaxis()->SetTitle("z [mm]"); // (fMeanTime/20 * drift_vel)
+    hColWires->GetZaxis()->SetTitle("Amplitude [ADC counts]");
+    hColWires->GetXaxis()->SetLabelSize(0.06);
+    hColWires->GetYaxis()->SetLabelSize(0.06);
+    hColWires->GetZaxis()->SetLabelSize(0.06);
+    hColWires->GetXaxis()->SetTitleSize(0.06);
+    hColWires->GetYaxis()->SetTitleSize(0.06);
+    hColWires->GetZaxis()->SetTitleSize(0.06);
+    hColWires->GetXaxis()->SetTitleOffset(1.25);
+    hColWires->GetYaxis()->SetTitleOffset(0.72);
+    hColWires->GetZaxis()->SetTitleOffset(0.9);
+	hColWires->Draw("colz");
+	
+	canvas->cd(2);
+    hIndWires->SetStats(0);
+    hIndWires->SetTitle("");
+    hIndWires->GetXaxis()->SetTitle("IndWireNum [-]");
+    hIndWires->GetYaxis()->SetTitle("z [mm]"); // (fMeanTime/20 * drift_vel)
+    hIndWires->GetZaxis()->SetTitle("Amplitude [ADC counts]");
+    hIndWires->GetXaxis()->SetLabelSize(0.06);
+    hIndWires->GetYaxis()->SetLabelSize(0.06);
+    hIndWires->GetZaxis()->SetLabelSize(0.06);
+    hIndWires->GetXaxis()->SetTitleSize(0.06);
+    hIndWires->GetYaxis()->SetTitleSize(0.06);
+    hIndWires->GetZaxis()->SetTitleSize(0.06);
+    hIndWires->GetXaxis()->SetTitleOffset(1.25);
+    hIndWires->GetYaxis()->SetTitleOffset(0.72);
+    hIndWires->GetZaxis()->SetTitleOffset(0.9);
+	hIndWires->Draw("colz");
+	
+    canvas->SaveAs(save_file_name);
+    
+    delete hColWires;
+    delete hIndWires;
+    delete canvas;
+
+
+
+return;
 }
